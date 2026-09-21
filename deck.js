@@ -1,0 +1,343 @@
+/* Weekly Business Report — deck renderer. Reads window.REPORT_DATA. */
+(function(){
+"use strict";
+var R = window.REPORT_DATA || { weeks:{}, weekOrder:[] };
+var weeks = R.weeks, order = R.weekOrder || [];
+var sel = order.length ? order[order.length-1] : null;   // default = latest week
+var si = 0;                                                // active slide index
+
+function cur(){ return weeks[sel] || null; }
+function prevWeek(){ return weeks[sel] && weeks[sel].prev ? weeks[weeks[sel].prev] : null; }
+
+/* ---------- formatters ---------- */
+function num(x){ return (x==null?0:x).toLocaleString(); }
+function money(x){ x=x||0; return (x<0?'-':'') + '$' + Math.abs(x).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function moneyS(x){ x=x||0; return (x>=0?'+':'-') + '$' + Math.abs(x).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function pctS(x){ x=x||0; return (x>=0?'+':'-') + Math.abs(x).toFixed(1) + '%'; }
+function dollarsper(x){ return money(x); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* delta pill. invert=true -> down is GOOD (arrow/delta both green). */
+function delta(cur, prevVal, opts){
+  opts = opts||{};
+  var d = (cur==null?0:cur) - (prevVal==null?0:prevVal);
+  var cls = d===0 ? 'flat' : ((d>0) ? (opts.invert?'down':'up') : (opts.invert?'up':'down'));
+  var arrow = d>0 ? '▲' : (d<0 ? '▼' : '•');
+  var f = opts.fmt ? opts.fmt(d) : moneyS(d);
+  return '<span class="delta '+cls+'">'+arrow+' '+f+'</span>';
+}
+
+/* ---------- tiny building blocks ---------- */
+function kpi(lbl, val, sub, cls){
+  return '<div class="kpi '+(cls||'')+'"><div class="lbl">'+esc(lbl)+'</div>'+
+         '<div class="val">'+val+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>';
+}
+function mk(l,v){ return '<div class="mk"><div class="l">'+l+'</div><div class="v">'+v+'</div></div>'; }
+
+function bars(rows, color, valFmt){
+  if(!rows || !rows.length) return '<div class="small" style="padding:10px">No data for this week.</div>';
+  var max = Math.max.apply(null, rows.map(function(r){ return r.v||0; }));
+  var out = '<div class="bars">';
+  rows.forEach(function(r){
+    var w = max>0 ? Math.max(4, (r.v/max)*100) : 0;
+    var vs = r.vs||'';
+    out += '<div class="bar-row"><div class="bar-lbl" title="'+esc(r.l)+'">'+esc(r.l)+'</div>'+
+      '<div class="bar-track"><div class="bar-fill" style="width:'+w+'%;background:'+color+'"></div></div>'+
+      '<div class="bar-val">'+(value(r.v,valFmt))+' <span class="small">'+vs+'</span></div></div>';
+  });
+  return out + '</div>';
+}
+function value(v,fmt){ return fmt?fmt(v):num(v); }
+
+/* ---------- slide scaffolding ---------- */
+function slide(num, title, sub, bodyHtml, note){
+  var wb = sel ? '<span class="weekbadge">'+esc(weeks[sel].label)+'</span>' : '';
+  return '<section class="slide"><div class="shead">'+
+    '<div class="snum">'+num+'</div><div><div class="stitle">'+esc(title)+'</div>'+
+    '<div class="ssub">'+esc(sub||'')+'</div></div>'+wb+'</div>'+
+    '<div class="sbody">'+bodyHtml+'</div>'+
+    (note?'<div class="snote">'+note+'</div>':'')+
+    '<div class="foot"><div class="small">Weekly Business Report · Oricle · data from Sales / Call EOD / Team dashboards</div>'+
+    '<div class="nvg"><span class="dots" id="dots"></span></div></div></section>';
+}
+
+/* =====================================================================
+   SLIDE 1 — Weekly Sales & Business Overview  (SALES first & prominent)
+   ===================================================================== */
+function s1(){
+  var c = cur(), p = prevWeek(), s = c.sales;
+  var sPrev = p ? (p.sales.total||0) : null;
+  var dCh = s.byChannel || {};
+  var chanPills = Object.keys(dCh).map(function(ch){
+    var o = dCh[ch];
+    var pillCls = /inbound/i.test(ch) ? 'pink' : 'blue';
+    return '<span class="pill '+pillCls+'"><span class="sw" style="background:'+(pillCls==='pink'?'#E8578E':'#4E9BE5')+'"></span>'+
+      esc(ch)+' &nbsp;<b>'+money(o.amt)+'</b> &middot; '+num(o.orders)+' orders</span>';
+  }).join('') || '<span class="small">No channel data</span>';
+
+  var topBrand = (s.byBrand||[]).map(function(b){ return {l:b.b, v:b.amt}; });
+  var topAgent = (s.byAgent||[]).map(function(a){ return {l:a.a, v:a.amt}; });
+
+  var call = c.call||{}, bd = call.breakdown||{}, team = c.team||{};
+  var boTotal = (call.backOffice||[]).reduce(function(a,b){return a+b.hrs;},0);
+
+  var hero =
+    '<div class="hero"><div class="lbl">Weekly Sales</div>'+
+    '<div class="herorow"><div class="heroL">'+
+      '<div class="bigv">'+money(s.total)+' <small>/ '+num(s.orders)+' orders</small></div>'+
+      '<div class="sub" style="margin-top:6px">Avg order '+money(s.avg)+' '+
+         (sPrev!=null ? delta(s.total, sPrev, {fmt:function(d){return moneyS(d)+' ('+pctS(sPrev?d/sPrev*100:0)+')';}, invert:false}) : '<span class="small">first week</span>')+
+      '</div></div>'+
+      '<div class="heroR">'+chanPills+'</div></div></div>';
+
+  var snapshot = kpi('📞 Total Calls', num(call.combined?call.combined.total:0), 'OHA + Non-OHA')+
+    kpi('🎫 Tickets', num(bd.totalTickets||0), 'call tickets this week')+
+    kpi('💸 Refund Tickets', num(bd.refundTickets||0), money(bd.refundAmount||0)+' refunded')+
+    kpi('👥 Team Perf', num(team.count||0)+' agents', 'avg score '+(team.avgOverall||0)+'%')+
+    kpi('🕐 Back-Office', num(Math.round(boTotal*10)/10)+' h', 'all agents');
+
+  var sec =
+    '<div class="hero">'+hero+'</div>'+
+    '<div class="cols"><div class="col"><h3>★ Top Selling Products</h3>'+
+      bars(topBrand, '#E8578E', money)+
+      '<h3 style="margin-top:10px">🏆 Top Sellers (by value)</h3>'+bars(topAgent, '#B99BDD', money)+
+    '</div>'+
+    '<div class="col"><h3>💼 This Week at a Glance</h3>'+
+      '<div class="mini-kpis">'+snapshot+'</div>'+
+      '<div class="scrollbox"><table><thead><tr><th>Channel</th><th>Sales</th><th>Orders</th><th>Avg</th></tr></thead><tbody>'+
+      Object.keys(dCh).map(function(ch){
+        var o=dCh[ch]; var avg=o.orders?o.amt/o.orders:0;
+        return '<tr><td>'+esc(ch)+'</td><td>'+money(o.amt)+'</td><td>'+num(o.orders)+'</td><td>'+money(avg)+'</td></tr>';
+      }).join('')+'</tbody></table></div></div></div>';
+
+  return slide(1, 'Weekly Sales & Business Overview',
+    'How did we perform this week?'+(sPrev!=null?'  ·  Compared to '+weeks[weeks[sel].prev].label+' ('+money(sPrev)+')':''),
+    sec);
+}
+
+/* =====================================================================
+   SLIDE 2 — Call Performance  (OHA / Non-OHA kept separate)
+   ===================================================================== */
+function chanCol(ch, label, color, dot){
+  var c = cur(), p = prevWeek();
+  var cv = c.call[ch]||{}, pv = p && p.call[ch] ? p.call[ch] : null;
+  var ar = cv.answerRate!=null? (cv.answerRate*100).toFixed(1)+'%' : '—';
+  var abRate = cv.agentReceived ? (cv.abandoned/cv.agentReceived*100).toFixed(1)+'%' : '—';
+  var wo = {
+    total: delta(cv.total||0, pv?pv.total:null, {fmt:function(d){return (d>0?'+':'-')+num(Math.abs(d));}, invert:false}),
+    aband: delta(cv.abandoned||0, pv?pv.abandoned:null, {fmt:function(d){return (d>0?'+':'-')+num(Math.abs(d));}, invert:true}),
+    aht: delta(!pv?'':(cv.ahtSec||0), pv?pv.ahtSec:null, {fmt:function(d){return (d>0?'+':'-')+Math.abs(d).toFixed(1)+'s';}, invert:true}),
+    ar: delta(cv.answerRate||0, pv?pv.answerRate:null, {fmt:function(d){return pctS(d*100);}, invert:false}),
+  };
+  return '<div class="col"><h3><span class="dot" style="background:'+color+'"></span>'+esc(label)+'  ·  '+esc(ch)+'  <span class="subq">Non-OHA blue / OHA pink</span></h3>'+
+    '<div class="mini-kpis">'+mk('Total Calls', num(cv.total||0))+
+      mk('Answered', num(cv.answered||0))+mk('Abandoned', num(cv.abandoned||0))+
+      mk('AHT', cv.aht||'—')+mk('Answer Rate', ar)+'</div>'+
+    '<div class="mini-kpis">'+
+      mk('Calls '+wo.total, '')+mk('Abandoned '+wo.aband, '')+
+      mk('AHT '+wo.aht, '')+mk('Answer '+wo.ar, '')+'</div>'+
+    '<div class="small">Answered = reached an agent. Answer Rate = answered ÷ (answered + missed + no-IVR abandoned).</div></div>';
+}
+function s2(){
+  var c = cur();
+  var cb = c.call.combined||{};
+  var note = 'OHA and Non-OHA are reported separately — they are two separate hotlines and are never merged into one primary number. Combined shown here as a secondary reference.';
+  var body = '<div class="cols">'+
+    chanCol('OHA','Inbound · OHA', '#E8578E')+
+    chanCol('NON-OHA','Inbound · Non-OHA', '#4E9BE5')+
+    '</div>'+
+    '<div class="chiprow"><span class="pill pink">OHA: '+num(cb.total||0)+' total · '+num(cb.answered||0)+' answered · AHT '+cb.aht+'</span></div>';
+  return slide(2, 'Call Performance', 'Overall call EOD performance, split by hotline', body, note);
+}
+
+/* =====================================================================
+   SLIDE 3 — IVR Branch Performance  (OHA / Non-OHA separate)
+   ===================================================================== */
+function ivrCol(ch, color){
+  var cv = cur().call[ch]||{};
+  var rows = (cv.ivr||[]).map(function(x){ return {l:x.branch, v:x.total, vs:'AHT '+x.aht+'s'}; });
+  return '<div class="col"><h3><span class="dot" style="background:'+color+'"></span>'+esc(ch)+' IVR Performance</h3>'+
+    '<div class="small" style="flex:none">Call volume by IVR branch — single click to compare the two hotlines side by side.</div>'+
+    bars(rows, color, num)+'</div>';
+}
+function s3(){
+  var note = 'IVR branches are kept separate for OHA and Non-OHA. Bars show call volume; the trailing number is that branch’s average AHT in seconds.';
+  return slide(3, 'IVR Branch Performance', 'Where calls land in the IVR, by hotline',
+    '<div class="cols">'+ivrCol('OHA','#E8578E')+ivrCol('NON-OHA','#4E9BE5')+'</div>', note);
+}
+
+/* =====================================================================
+   SLIDE 4 — Call Breakdown  (top drivers + reasons)
+   ===================================================================== */
+function s4(){
+  var bd = cur().call.breakdown||{};
+  var drivers = (bd.topDrivers||[]).map(function(x){ return {l:x.k, v:x.count}; });
+  var reasons = (bd.topCat||[]).map(function(x){ return {l:x.k, v:x.count}; });
+  var note = 'Note: the Call Breakdown source sheet does not carry an OHA/Non-OHA field, so top drivers & reasons are shown combined (the two hotlines’ totals together, not merged incorrectly as one hotline).';
+  var body = '<div class="cols">'+
+    '<div class="col"><h3>📞 Top Call Drivers</h3>'+bars(drivers,'#E8578E',num)+'</div>'+
+    '<div class="col"><h3>🗂 Top Call Reasons / Categories</h3>'+bars(reasons,'#B99BDD',num)+'</div></div>';
+  return slide(4, 'Call Breakdown', 'Why customers are calling', body, note);
+}
+
+/* =====================================================================
+   SLIDE 5 — Refund Overview
+   ===================================================================== */
+function s5(){
+  var c = cur(), p = prevWeek();
+  var bd = c.call.breakdown||{};
+  var pbd = p && p.call.breakdown ? p.call.breakdown : null;
+  var rr = (bd.topRefundReason||[]).map(function(x){ return {l:x.k, v:x.refund, vs:num(x.count)+' tk'}; });
+  var row = '<div class="kpis">'+
+    kpi('Refund Tickets', num(bd.refundTickets||0), pbd?delta(bd.refundTickets||0,pbd.refundTickets||0,{fmt:function(d){return (d>0?'+':'-')+num(Math.abs(d))+' tk';},invert:true}):'')+
+    kpi('Total Refunded', money(bd.refundAmount||0), pbd?delta(bd.refundAmount||0,pbd.refundAmount||0,{fmt:moneyS,invert:true}):'', 'accent')+
+    kpi('Avg Refund', money(bd.avgRefund||0), 'per refund ticket')+
+    kpi('Refund / Tickets', bd.totalTickets? ((bd.refundTickets/bd.totalTickets*100).toFixed(1)+'%') : '—', 'of '+num(bd.totalTickets||0)+' tickets')+'</div>';
+  var note = 'Note: refund data comes from the Call Breakdown sheet which has no OHA/Non-OHA field, so it is reported combined.';
+  return slide(5,'Refund Overview','Refund tickets, amounts & top reasons', row+'<div class="col" style="flex:1"><h3>💸 Top Refund Reasons (by refunded amount)</h3>'+bars(rr,'#D9455F',money)+'</div>', note);
+}
+
+/* =====================================================================
+   SLIDE 6 — Week-over-Week Refund Trends
+   ===================================================================== */
+function refund_series(n){
+  var arr = [];
+  for(var i=order.length-1;i>=0 && arr.length<n;i--){
+    var wk = weeks[order[i]];
+    var ref = wk.call && wk.call.breakdown ? wk.call.breakdown.refundAmount : 0;
+    arr.unshift({l:wk.label, v:ref||0});
+  }
+  return arr;
+}
+function s6(){
+  var c = cur(), p = prevWeek();
+  var bd = c.call.breakdown||{}, pbd = p && p.call.breakdown ? p.call.breakdown : null;
+  var rows = '<div class="kpis">'+
+    kpi('Refund Tickets — now', num(bd.refundTickets||0), pbd?'vs '+num(pbd.refundTickets||0):'')+
+    kpi('Refund $ — now', money(bd.refundAmount||0), pbd?'vs '+money(pbd.refundAmount||0):'','tot')+
+    kpi('Tickets WoW', bd.refundTickets!=null && pbd ? (delta(bd.refundTickets,pbd.refundTickets,{fmt:function(d){return pctS((pbd.refundTickets?d/pbd.refundTickets*100:0));},invert:true})) : '—', 'shallower is better')+
+    kpi('Amount WoW', bd.refundAmount!=null && pbd? (delta(bd.refundAmount,pbd.refundAmount,{fmt:function(d){return pctS(pbd.refundAmount?d/pbd.refundAmount*100:0);},invert:true})) : '—', 'shallower is better')+'</div>';
+  var tr = refund_series(8);
+  var body = rows + '<div class="col" style="flex:1"><h3>📈 Refund Trend — refunded amount, last '+tr.length+' weeks</h3>'+bars(tr,'#D9455F',money)+'</div>';
+  return slide(6,'Week-over-Week Refund Trends','OHA + Non-OHA combined (source sheet has no hotline split)', body,
+    'WoW arrow colour: green = fewer refunds (good). Combined because the refund source sheet has no OHA/Non-OHA field.');
+}
+
+/* =====================================================================
+   SLIDE 7 — Detailed Sales Performance
+   ===================================================================== */
+function sales_series(n){
+  var arr = [];
+  for(var i=order.length-1;i>=0 && arr.length<n;i--){
+    var wk=weeks[order[i]];
+    arr.unshift({l:wk.label, v:wk.sales.total||0});
+  }
+  return arr;
+}
+function s7(){
+  var c = cur(), s = c.sales, p = prevWeek();
+  var sPrev = p?p.sales.total:null;
+  var kw = s.byChannel||{};
+  var krow = '<div class="kpis">'+
+    kpi('Weekly Sales', money(s.total), 'this week'+ (sPrev!=null? ' · '+delta(s.total,sPrev,{fmt:moneyS,invert:false}):''), 'accent')+
+    kpi('Orders', num(s.orders), 'avg '+money(s.avg||0))+
+    kpi('Inbound', money(kw.Inbound?kw.Inbound.amt:0), (kw.Inbound?num(kw.Inbound.orders)+' orders':'') )+
+    kpi('SMS Callback', money(kw['SMS CB']?kw['SMS CB'].amt:0), (kw['SMS CB']?num(kw['SMS CB'].orders)+' orders':'') )+'</div>';
+  var tr = sales_series(8);
+  var body = krow +
+    '<div class="cols"><div class="col"><h3>📈 Weekly Sales Trend (last '+tr.length+' weeks)</h3>'+bars(tr,'#E8578E',money)+
+      '<h3 style="margin-top:10px">🏆 Top Sellers</h3>'+bars((s.byAgent||[]).map(function(a){return {l:a.a,v:a.amt};}),'#B99BDD',money)+'</div>'+
+    '<div class="col"><h3>🛍 Products</h3>'+bars((s.byBrand||[]).map(function(b){return {l:b.b,v:b.amt};}),'#4E9BE5',money)+'</div></div>';
+  return slide(7,'Detailed Sales Performance','Week-over-week sales, channels, products & sellers', body);
+}
+
+/* =====================================================================
+   SLIDE 8 — Team Weekly Performance
+   ===================================================================== */
+function s8(){
+  var t = cur().team||{};
+  var rows = t.rank||[];
+  var top = rows[0];
+  var krow = '<div class="kpis">'+
+    kpi('Agents', num(t.count||0), 'this week')+
+    kpi('Team Avg Score', (t.avgOverall||0)+'%', 'week total / 100','accent')+
+    kpi('Top Performer', top?'<span style="font-size:16px">'+esc(top.a)+'</span>':'—', top? (top.total+'% this week') : '');
+  var tr = '<tr><th>Rank</th><th>Agent</th><th>Overall</th><th>Pick Up %</th><th>AHT</th><th>Attempts</th></tr>';
+  var tb = rows.map(function(r,i){
+    var cs=r.calls||{};
+    return '<tr><td>'+(i+1)+'</td><td>'+esc(r.a)+'</td><td><b>'+r.total+'%</b></td>'+
+      '<td>'+(cs&&cs.pickupRate!=null?cs.pickupRate+'%':'—')+'</td>'+
+      '<td>'+(cs&&cs.aht?esc(cs.aht):'—')+'</td>'+
+      '<td>'+(cs&&cs.attempts?num(cs.attempts):'—')+'</td></tr>';
+  }).join('') || '<tr><td colspan="6" class="small">No scorecard for this week.</td></tr>';
+  var body = krow + '<div class="scrollbox"><table><thead>'+tr+'</thead><tbody>'+tb+'</tbody></table></div>'+
+    '<div class="small">Overall = TOTAL SCORE (out of 100) from the Weekly Scorecard. Call stats from the Team Weekly Call Stats block.</div>';
+  return slide(8,'Team Weekly Performance','Individual CSR scorecards & call productivity','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
+}
+
+/* =====================================================================
+   SLIDE 9 — Back Office Hours  (individual agent names)
+   ===================================================================== */
+function s9(){
+  var bo = (cur().call && cur().call.backOffice) || [];
+  var total = bo.reduce(function(a,b){return a+b.hrs;},0);
+  var rows = bo.map(function(b){ return {l:b.a, v:b.hrs}; });
+  var krow = '<div class="kpis">'+
+    kpi('Agents (back office)', num(bo.length), 'this week')+
+    kpi('Total Back-Office Hours', num(Math.round(total*10)/10)+' h', 'all agents','accent')+
+    kpi('Avg per Agent', bo.length? (Math.round(total/bo.length*10)/10)+' h':'0 h', 'active this week')+'</div>';
+  var body = krow + '<div class="col" style="flex:1"><h3>🕐 Back-Office Hours by Agent</h3>'+
+    (rows.length?'':'<div class="small" style="padding:12px">No back-office activity recorded this week.</div>')+
+    bars(rows,'#B99BDD',function(v){return v+' h';})+'</div>';
+  return slide(9,'Back Office Hours','Individual agent back-office time','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
+}
+
+var SLIDES = [s1,s2,s3,s4,s5,s6,s7,s8,s9];
+
+/* ---------- nav ---------- */
+function render(){
+  if(!sel){ document.getElementById('deck').innerHTML='<div class="small" style="padding:40px">No report data loaded.</div>'; return; }
+  si = Math.max(0, Math.min(si, SLIDES.length-1));
+  var holder = document.getElementById('deck');
+  holder.innerHTML = SLIDES[si]();
+  var act = holder.querySelector('.slide'); if(act) act.classList.add('active');
+  var dots = document.getElementById('dots');
+  if(dots){
+    dots.innerHTML = SLIDES.map(function(f,i){
+      return '<span class="dot'+(i===si?' on':'')+'" data-i="'+i+'" title="Slide '+(i+1)+'"></span>';
+    }).join('');
+    dots.querySelectorAll('.dot').forEach(function(d){ d.onclick=function(){ si=+d.getAttribute('data-i'); render(); }; });
+  }
+}
+function goTo(i){ si = Math.max(0, Math.min(SLIDES.length-1, i)); render(); }
+function next(){ goTo(si+1); }
+function prev(){ goTo(si-1); }
+
+/* ---------- wire ---------- */
+window.addEventListener('DOMContentLoaded', function(){
+  var selEl = document.getElementById('weekSel');
+  selEl.innerHTML = order.slice().reverse().map(function(w){
+    return '<option value="'+w+'"'+(w===sel?' selected':'')+'>'+esc(weeks[w].label)+'</option>';
+  }).join('');
+  selEl.onchange = function(){ sel = selEl.value; si=0; render(); };
+  document.getElementById('btnPrint').onclick = function(){ window.print(); };
+  document.getElementById('btnFull').onclick = function(){
+    if(document.fullscreenElement){ document.exitFullscreen(); } else { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(function(){}); }
+  };
+  document.addEventListener('keydown', function(e){
+    if(e.target && e.target.tagName==='SELECT') return;
+    if(e.key==='ArrowRight'||e.key==='PageDown'){ next(); }
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){ prev(); }
+    else if(e.key==='Home'){ goTo(0); }
+    else if(e.key==='End'){ goTo(SLIDES.length-1); }
+  });
+  // side click zones
+  document.getElementById('deck').addEventListener('click', function(e){
+    if(e.target.closest('.dot') || e.target.closest('.foot') || e.target.closest('table') || e.target.closest('.scrollbox')) return;
+    var r = document.getElementById('deck').getBoundingClientRect();
+    if(e.clientX > r.left + r.width*0.55){ next(); } else { prev(); }
+  });
+  render();
+});
+
+})();

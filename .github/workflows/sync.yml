@@ -1,0 +1,47 @@
+name: Sync Weekly Report Data
+on:
+  schedule:
+    - cron: "23 * * * *"   # every hour at :23 (offset from the source dashboards' :07 auto-syncs)
+  workflow_dispatch: {}     # manual run button
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Download live source dashboards
+        run: |
+          mkdir -p _src
+          curl -sL -o _src/sales.js "https://daniellecrizaldo781.github.io/Sales-Dashboard/data.js"
+          curl -sL -o _src/call.js   "https://daniellecrizaldo781.github.io/Call-Eod-Stats-Dashboard/data.js"
+          curl -sL -o _src/team.js   "https://daniellecrizaldo781.github.io/Team-Dashboard/data.js"
+          for f in sales call team; do
+            if [ ! -s "_src/$f.js" ]; then echo "ERROR: $f.js empty/download failed"; exit 1; fi
+          done
+      - name: Build report-data.js
+        run: python build_report_data.py _src report-data.js
+      - name: Bump cache-buster and commit if changed
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          python - <<'PY'
+          import re, datetime
+          stamp = datetime.datetime.now().strftime('%Y%m%d%H%M')
+          f = open('index.html').read()
+          f = re.sub(r'(report-data\.js|deck\.js)\?v=[0-9]*', lambda m: m.group(1)+'?v='+stamp, f)
+          open('index.html','w').write(f)
+          PY
+          if ! git diff --quiet report-data.js index.html; then
+            git config user.name "github-actions"
+            git config user.email "actions@github.com"
+            git add report-data.js index.html
+            git commit -m "auto: refresh weekly report data from source dashboards"
+            git push
+            echo "Committed and pushed updated report-data.js"
+          else
+            echo "No data change this run"
+          fi
