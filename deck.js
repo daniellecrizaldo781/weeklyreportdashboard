@@ -120,7 +120,7 @@ function slide(num, title, sub, bodyHtml, note){
     '<div class="ssub">'+esc(sub||'')+'</div></div>'+wb+'</div>'+
     '<div class="sbody">'+bodyHtml+'</div>'+
     (note?'<div class="snote">'+note+'</div>':'')+
-    '<div class="foot"><div class="small">TL Danielle Weekly Report · Oricle · data from Sales / Call EOD / Team dashboards</div>'+
+    '<div class="foot"><div class="small">Danielle Ann Mari Crizaldo Weekly report · Oricle · data from Sales / Call EOD / Team dashboards</div>'+
     '<div class="nvg"><span class="dots" id="dots"></span></div></div></section>';
 }
 
