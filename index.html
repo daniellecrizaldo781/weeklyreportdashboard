@@ -161,6 +161,22 @@ tr td:first-child{font-weight:700;}
   .bar-lbl{width:105px; font-size:11px;}
   .bigv{font-size:36px;}
 }
+/* vertical bars */
+.vbars{display:flex; align-items:flex-end; gap:18px; flex:1; min-height:0; padding-top:10px;}
+.vbar{flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; height:100%;}
+.vbar-val{font-size:11px; font-weight:800; color:var(--ink);}
+.vbar-track{flex:1; width:100%; max-width:64px; background:#F7F0F4; border-radius:8px; display:flex; align-items:flex-end; overflow:hidden; min-height:40px;}
+.vbar-fill{width:100%; border-radius:8px;}
+.vbar-lbl{font-size:10px; color:var(--muted); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;}
+/* inline legend */
+.legend-inline{display:flex; gap:16px; flex:none; font-size:12px; font-weight:700; color:var(--ink);}
+.legend-inline .li{display:inline-flex; align-items:center; gap:6px;}
+.legend-inline .sw{width:11px;height:11px;border-radius:4px;}
+/* nav arrows */
+.navarrow{position:fixed; top:50%; transform:translateY(-50%); z-index:50; width:46px; height:46px; border-radius:50%; border:1.5px solid var(--pink-soft); background:rgba(255,255,255,.85); color:var(--pink); font-size:20px; font-weight:800; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 14px rgba(232,87,142,.18); transition:background .2s, transform .2s;}
+.navarrow:hover{background:#fff; transform:translateY(-50%) scale(1.06);}
+.navarrow.left{left:14px;}
+.navarrow.right{right:14px;}
 </style>
 </head>
 <body>
@@ -177,9 +193,11 @@ tr td:first-child{font-weight:700;}
 <div id="deck">
   <!-- slides injected here by deck.js -->
 </div>
+<button class="navarrow left" id="btnPrev" title="Previous slide">◀</button>
+<button class="navarrow right" id="btnNext" title="Next slide">▶</button>
 
 <script src="report-data.js?v=2026092101"></script>
-<script src="deck.js?v=2026092101"></script>
+<script src="deck.js?v=2026092201"></script>
 <script src="html2canvas.min.js?v=2026092101"></script>
 <script src="jszip.min.js?v=2026092101"></script>
 <script src="png-export.js?v=2026092101"></script>
