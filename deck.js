@@ -46,6 +46,37 @@ function bars(rows, color, valFmt){
 }
 function value(v,fmt){ return fmt?fmt(v):num(v); }
 
+function stackedBars(rows, colorA, colorB){
+  if(!rows || !rows.length) return '<div class="small" style="padding:10px">No data.</div>';
+  var max = Math.max.apply(null, rows.map(function(r){ return (r.a||0)+(r.b||0); }));
+  var out = '<div class="bars">';
+  rows.forEach(function(r){
+    var tot=(r.a||0)+(r.b||0);
+    var wa=max>0?(r.a||0)/max*100:0, wb=max>0?(r.b||0)/max*100:0;
+    out += '<div class="bar-row"><div class="bar-lbl" title="'+esc(r.l)+'">'+esc(r.l)+'</div>'+
+      '<div class="bar-track" style="display:flex">'+
+        '<div class="bar-fill" style="width:'+wa+'%;background:'+colorA+';border-radius:8px 0 0 8px"></div>'+
+        '<div class="bar-fill" style="width:'+wb+'%;background:'+colorB+';border-radius:0 8px 8px 0"></div>'+
+      '</div><div class="bar-val"><b>'+num(tot)+'</b></div></div>';
+  });
+  return out + '</div>';
+}
+function donut(parts, colors){
+  if(!parts || !parts.length) return '<div class="small" style="padding:10px">No data.</div>';
+  var total = parts.reduce(function(a,b){return a+(b.v||0);},0);
+  var R=42, C=2*Math.PI*R, acc=0;
+  var segs = parts.map(function(p,i){
+    var frac = total>0 ? (p.v||0)/total : 0;
+    var dash=frac*C, gap=C-dash, off=-acc*C; acc+=frac;
+    return '<circle r="'+R+'" cx="50" cy="50" fill="none" stroke="'+(colors[i%colors.length])+'" stroke-width="16" stroke-dasharray="'+dash+' '+gap+'" stroke-dashoffset="'+off+'"/>';
+  }).join('');
+  var legend = parts.map(function(p,i){
+    var pc = total>0 ? ((p.v||0)/total*100).toFixed(0) : 0;
+    return '<div class="li"><span class="sw" style="background:'+(colors[i%colors.length])+'"></span><span class="nm">'+esc(p.l)+'</span><span class="pc">'+pc+'%</span></div>';
+  }).join('');
+  return '<div class="donut-wrap"><div class="donut"><svg viewBox="0 0 100 100">'+segs+'</svg><div class="center"><div class="v">'+num(total)+'</div><div class="l">calls</div></div></div><div class="legend">'+legend+'</div></div>';
+}
+
 function slide(num, title, sub, bodyHtml, note){
   var wb = sel ? '<span class="weekbadge">'+esc(weeks[sel].label)+'</span>' : '';
   return '<section class="slide"><div class="shead">'+
@@ -103,7 +134,7 @@ function sales_series(n){
   var arr = [];
   for(var i=order.length-1;i>=0 && arr.length<n;i--){
     var wk=weeks[order[i]];
-    arr.unshift({l:wk.label, v:wk.sales.total||0});
+    arr.push({l:wk.label, v:wk.sales.total||0});   // latest first (top of chart)
   }
   return arr;
 }
@@ -116,7 +147,7 @@ function s2(){
     kpi('Orders', num(s.orders), 'avg '+money(s.avg||0))+
     kpi('Inbound', money(kw.Inbound?kw.Inbound.amt:0), (kw.Inbound?num(kw.Inbound.orders)+' orders':'') )+
     kpi('SMS Callback', money(kw['SMS CB']?kw['SMS CB'].amt:0), (kw['SMS CB']?num(kw['SMS CB'].orders)+' orders':'') )+'</div>';
-  var tr = sales_series(8);
+  var tr = sales_series(5);
   var body = krow +
     '<div class="cols"><div class="col"><h3>📈 Weekly Sales Trend (last '+tr.length+' weeks)</h3>'+bars(tr,'#E8578E',money)+
       '<h3 style="margin-top:10px">🏆 Top Sellers</h3>'+bars((s.byAgent||[]).map(function(a){return {l:a.a,v:a.amt};}),'#B99BDD',money)+'</div>'+
@@ -137,9 +168,6 @@ function s3(){
     '<div class="cols">'+top5('OHA','#E8578E')+top5('NON-OHA','#4E9BE5')+'</div>');
 }
 
-/* =====================================================================
-   SLIDE 4 — Call Breakdown  (OHA / Non-OHA top call drivers)
-   ===================================================================== */
 function s4(){
   var c = cur(), p = prevWeek();
   var bd = c.call.breakdown||{};
