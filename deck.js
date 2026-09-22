@@ -136,16 +136,16 @@ function s1(){
     return '<span class="pill '+pillCls+'"><span class="sw" style="background:'+(pillCls==='pink'?'#E8578E':'#4E9BE5')+'"></span>'+
       esc(ch)+' &nbsp;<b>'+money(o.amt)+'</b> &middot; '+num(o.orders)+' orders</span>';
   }).join('') || '<span class="small">No channel data</span>';
-  var topBrand = (s.byBrand||[]).map(function(b){ return {l:b.b, v:b.amt}; });
-  var topAgent = (s.byAgent||[]).map(function(a){ return {l:a.a, v:a.amt}; });
+  var topBrand = (s.byBrand||[]).slice(0,3).map(function(b){ return {l:b.b, v:b.amt}; });
+  var topAgent = (s.byAgent||[]).slice(0,3).map(function(a){ return {l:a.a, v:a.amt}; });
   var tr = sales_series(5);
   var hero =
     '<div class="hero"><div class="lbl">Weekly Sales</div>'+
     '<div class="herorow"><div class="heroL">'+
       '<div class="bigv">'+money(s.total)+' <small>/ '+num(s.orders)+' orders</small></div>'+
-      '<div class="sub" style="margin-top:6px">Avg order '+money(s.avg)+' '+
-         (sPrev!=null ? delta(s.total, sPrev, {fmt:function(d){return moneyS(d)+' ('+pctS(sPrev?d/sPrev*100:0)+')';}, invert:false}) : '<span class="small">first week</span>')+
-      '</div></div>'+
+      '<div class="sub" style="margin-top:6px">Avg order '+money(s.avg)+
+               (sPrev!=null ? ' &middot; Prev week '+money(sPrev)+' '+delta(s.total, sPrev, {fmt:function(d){return moneyS(d)+' ('+pctS(sPrev?d/sPrev*100:0)+')';}, invert:false}) : '<span class="small">first week</span>')+
+            '</div></div>'
       '<div class="heroR">'+chanPills+'</div></div></div>';
   var krow = '<div class="kpis">'+
     kpi('Orders', num(s.orders), 'avg '+money(s.avg||0))+
