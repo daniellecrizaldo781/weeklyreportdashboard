@@ -102,6 +102,11 @@ def fmt_week(ws):
     return f"{fmt_day(ws)} – {fmt_day(we)}"
 
 
+def pct(v):
+    """Normalise a percent that may be stored as 0.99 or 99 -> 99."""
+    if v is None: return None
+    return v if v > 1.5 else v * 100
+
 def fmt_clock(sec):
     sec = int(round(sec or 0))
     h, m, s = sec // 3600, (sec % 3600) // 60, sec % 60
@@ -280,13 +285,17 @@ def agg_team(team):
         overalls = []
         for agent, metrics in agents.items():
             total = metrics.get("TOTAL SCORE (out of 100)")
-            pct = metrics.get("Overall %")
+            overall = metrics.get("Overall %")
             rank = metrics.get("TEAM RANKING") or ""
             if total is None:
                 continue
-            rows.append({"a": agent, "total": round(total, 2),
-                         "pct": round((pct or 0) * 100, 1) if pct else None,
-                         "rank": rank})
+            rows.append({"a": agent, "total": round(min(total, 100), 2),
+                         "pct": round(min(pct(overall), 100), 1) if overall is not None else None,
+                         "rank": rank,
+                         "att": round(min(pct(metrics.get("Attendance %")), 100), 1) if metrics.get("Attendance %") is not None else None,
+                         "qual": round(min(pct(metrics.get("Quality %")), 100), 1) if metrics.get("Quality %") is not None else None,
+                         "prod": round(min(pct(metrics.get("Productivity %")), 100), 1) if metrics.get("Productivity %") is not None else None,
+                         "we": round(min(pct(metrics.get("Work Ethic %")), 100), 1) if metrics.get("Work Ethic %") is not None else None})
             overalls.append(total)
         rows.sort(key=lambda x: -x["total"])
         weeks[w]["rank"] = rows
