@@ -219,39 +219,62 @@ def agg_call(call):
         combined.pop("aht_sum")
         wk_dict["combined"] = combined
 
-        # --- breakdown (aggregate; no OHA/Non-OHA field in source) ---
-        bd = defaultdict(lambda: {"n": 0, "refund": 0.0})
-        for r in call.get("breakdown", []):
-            if week_of(r.get("d")) != wk:
-                continue
-            sub = r.get("sub") or "Unspecified"
-            cat = r.get("cat") or "General"
-            b = bd[(sub, cat)]
-            b["n"] += 1
-            b["refund"] += (r.get("refund") or 0)
-        refund_tk = sum(1 for (s_, c_), b in bd.items() if b["refund"] > 0)
-        refund_amt = round(sum(b["refund"] for (s_, c_), b in bd.items()), 2)
-        # drivers by sub, reasons by cat, refund reasons by sub
-        def top(key, refund_only=False):
-            t = defaultdict(float)
-            n = defaultdict(int)
-            for (s_, c_), b in bd.items():
-                if refund_only and b["refund"] <= 0:
-                    continue
-                k = s_ if key == "sub" else c_
-                t[k] += b["refund"]
-                n[k] += b["n"]
-            agg2 = [(k, n[k], round(t[k], 2)) for k in t]
-            agg2.sort(key=lambda x: -x[1])
-            return [{"k": k, "count": n, "refund": r} for k, n, r in agg2[:8]]
+        # --- breakdown, split by channel via brand heuristic (OHA = Oricle brands) ---
+        def is_oricle(b): return isinstance(b, str) and b.lower().startswith("oricle")
+        rows_wk = [r for r in call.get("breakdown", []) if week_of(r.get("d")) == wk]
+        def agg_bd(rows):
+            bd = defaultdict(lambda: {"n": 0, "refund": 0.0})
+            for r in rows:
+                sub = r.get("sub") or "Unspecified"
+                cat = r.get("cat") or "General"
+                b = bd[(sub, cat)]
+                b["n"] += 1
+                b["refund"] += (r.get("refund") or 0)
+            refund_tk = sum(1 for r in rows if (r.get("refund") or 0) > 0)
+            refund_amt = round(sum((r.get("refund") or 0) for r in rows), 2)
+            def top(key, refund_only=False):
+                t = defaultdict(float); n = defaultdict(int)
+                for (s_, c_), b in bd.items():
+                    if refund_only and b["refund"] <= 0:
+                        continue
+                    k = s_ if key == "sub" else c_
+                    t[k] += b["refund"]; n[k] += b["n"]
+                agg2 = [(k, n[k], round(t[k], 2)) for k in t]
+                agg2.sort(key=lambda x: -x[1])
+                return [{"k": k, "count": n, "refund": r} for k, n, r in agg2[:8]]
+            return {
+                "tickets": len(rows),
+                "refundTickets": refund_tk,
+                "refundAmount": refund_amt,
+                "avgRefund": round(refund_amt / refund_tk, 2) if refund_tk else 0,
+                "topDrivers": top("cat"),
+                "topRefundReason": top("sub", refund_only=True),
+            }
+        oha_rows = [r for r in rows_wk if is_oricle(r.get("brand"))]
+        nonoha_rows = [r for r in rows_wk if not is_oricle(r.get("brand"))]
+        # top main refund reason per brand
+        bybrand = defaultdict(lambda: {"n": 0, "refund": 0.0, "reasons": defaultdict(float)})
+        for r in rows_wk:
+            if (r.get("refund") or 0) > 0:
+                b = bybrand[r.get("brand") or "Unspecified"]
+                b["n"] += 1
+                b["refund"] += r["refund"]
+                b["reasons"][r.get("sub") or "Unspecified"] += r["refund"]
+        bybrand_list = []
+        for brand, b in bybrand.items():
+            top_reason = max(b["reasons"].items(), key=lambda x: x[1])[0] if b["reasons"] else "—"
+            bybrand_list.append({"brand": brand, "tickets": b["n"], "refund": round(b["refund"], 2), "topReason": top_reason})
+        bybrand_list.sort(key=lambda x: -x["refund"])
         wk_dict["breakdown"] = {
-            "totalTickets": sum(b["n"] for (s_, c_), b in bd.items()),
-            "refundTickets": refund_tk,
-            "refundAmount": refund_amt,
-            "avgRefund": round(refund_amt / refund_tk, 2) if refund_tk else 0,
-            "topDrivers": top("sub"),
-            "topCat": top("cat"),
-            "topRefundReason": top("sub", refund_only=True),
+            "totalTickets": len(rows_wk),
+            "refundTickets": agg_bd(rows_wk)["refundTickets"],
+            "refundAmount": agg_bd(rows_wk)["refundAmount"],
+            "avgRefund": agg_bd(rows_wk)["avgRefund"],
+            "topDrivers": agg_bd(rows_wk)["topDrivers"],
+            "topRefundReason": agg_bd(rows_wk)["topRefundReason"],
+            "oha": agg_bd(oha_rows),
+            "nonoha": agg_bd(nonoha_rows),
+            "byBrand": bybrand_list,
         }
 
         weeks[wk] = wk_dict
@@ -289,13 +312,13 @@ def agg_team(team):
             rank = metrics.get("TEAM RANKING") or ""
             if total is None:
                 continue
-            rows.append({"a": agent, "total": round(min(total, 100), 2),
-                         "pct": round(min(pct(overall), 100), 1) if overall is not None else None,
+            rows.append({"a": agent, "total": round(total, 2),
+                         "pct": round(pct(overall), 1) if overall is not None else None,
                          "rank": rank,
-                         "att": round(min(pct(metrics.get("Attendance %")), 100), 1) if metrics.get("Attendance %") is not None else None,
-                         "qual": round(min(pct(metrics.get("Quality %")), 100), 1) if metrics.get("Quality %") is not None else None,
-                         "prod": round(min(pct(metrics.get("Productivity %")), 100), 1) if metrics.get("Productivity %") is not None else None,
-                         "we": round(min(pct(metrics.get("Work Ethic %")), 100), 1) if metrics.get("Work Ethic %") is not None else None})
+                         "att": round(pct(metrics.get("Attendance %")), 1) if metrics.get("Attendance %") is not None else None,
+                         "qual": round(pct(metrics.get("Quality %")), 1) if metrics.get("Quality %") is not None else None,
+                         "prod": round(pct(metrics.get("Productivity %")), 1) if metrics.get("Productivity %") is not None else None,
+                         "we": round(pct(metrics.get("Work Ethic %")), 1) if metrics.get("Work Ethic %") is not None else None})
             overalls.append(total)
         rows.sort(key=lambda x: -x["total"])
         weeks[w]["rank"] = rows
