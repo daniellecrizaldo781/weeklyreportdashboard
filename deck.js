@@ -209,8 +209,8 @@ function s4(){
   var pbd = p && p.call.breakdown ? p.call.breakdown : null;
   var oha = bd.oha||{}, nonoha = bd.nonoha||{};
   var poha = pbd && pbd.oha ? pbd.oha : null, pnon = pbd && pbd.nonoha ? pbd.nonoha : null;
-  var ohaReasons = (oha.topRefundReason||[]).map(function(x){ return {l:x.k, v:x.refund, vs:num(x.count)+' tk'}; });
-  var nonohaReasons = (nonoha.topRefundReason||[]).map(function(x){ return {l:x.k, v:x.refund, vs:num(x.count)+' tk'}; });
+  var ohaReasons = (oha.topRefundReason||[]).slice(0,4).map(function(x){ return {l:x.k, v:x.refund, vs:num(x.count)+' tk'}; });
+  var nonohaReasons = (nonoha.topRefundReason||[]).slice(0,4).map(function(x){ return {l:x.k, v:x.refund, vs:num(x.count)+' tk'}; });
   var krow = '<div class="kpis">'+
     kpi('OHA Tickets', num(oha.tickets||0), '', 'tot')+
     kpi('OHA Refund Tickets', num(oha.refundTickets||0), '', 'tot')+
