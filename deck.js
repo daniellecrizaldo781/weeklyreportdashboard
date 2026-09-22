@@ -159,13 +159,17 @@ function s2(){
    SLIDE 3 — IVR Branch Performance  (top 5 per channel, no chips)
    ===================================================================== */
 function s3(){
-  function top5(ch, color){
+  function ivrBlock(ch){
     var cv = cur().call[ch]||{};
-    var rows = (cv.ivr||[]).slice(0,5).map(function(x){ return {l:x.branch, v:x.total, vs:'AHT '+x.aht+'s'}; });
-    return '<div class="col"><h3>'+esc(ch)+' IVR — Top 5 Branches</h3>'+bars(rows, color, num)+'</div>';
+    var top = (cv.ivr||[]).slice(0,5);
+    var stacked = top.map(function(x){ return {l:x.branch, a:x.answered, b:x.abandoned}; });
+    var share = top.map(function(x){ return {l:x.branch, v:x.total}; });
+    return '<div class="col"><h3>'+esc(ch)+' IVR — Top 5</h3>'+
+      '<div class="small" style="flex:none">Answered vs Abandoned by IVR Branch</div>'+stackedBars(stacked,'#E8578E','#B99BDD')+
+      '<div class="small" style="flex:none">Branch Share</div>'+donut(share,['#E8578E','#B99BDD','#4E9BE5','#7FCBA6','#F0A579'])+'</div>';
   }
-  return slide(3,'IVR Branch Performance','Top 5 IVR branches by call volume, per hotline',
-    '<div class="cols">'+top5('OHA','#E8578E')+top5('NON-OHA','#4E9BE5')+'</div>');
+  return slide(3,'IVR Branch Performance','Top 5 IVR branches — answered vs abandoned & share',
+    '<div class="cols">'+ivrBlock('OHA')+ivrBlock('NON-OHA')+'</div>');
 }
 
 function s4(){
