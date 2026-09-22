@@ -344,6 +344,9 @@ function render(){
   }
 }
 function goTo(i){ si = Math.max(0, Math.min(SLIDES.length-1, i)); render(); }
+/* exposed for png-export.js */
+window.__goTo = goTo;
+window.__slideCount = function(){ return SLIDES.length; };
 function next(){ goTo(si+1); }
 function prev(){ goTo(si-1); }
 
