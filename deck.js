@@ -148,7 +148,11 @@ function s1(){
       esc(ch)+' &nbsp;<b>'+money(o.amt)+'</b> &middot; '+num(o.orders)+' orders</span>';
   }).join('') || '<span class="small">No channel data</span>';
   var topBrand = (s.byBrand||[]).slice(0,3).map(function(b){ return {l:b.b, v:b.amt}; });
-  var wts = weeklyTopSellers(5);
+  var curWk = weeks[sel];
+  var prevWk = weeks[sel] && weeks[sel].prev ? weeks[weeks[sel].prev] : null;
+  function top3(wk){ return ((wk && wk.sales && wk.sales.byAgent)||[]).slice(0,3).map(function(a){ return {seller:a.a, amt:a.amt}; }); }
+  var curTop = top3(curWk);
+  var prevTop = prevWk ? top3(prevWk) : [];
   var tr = sales_series(5);
   var hero =
     '<div class="hero"><div class="lbl">Weekly Sales</div>'+
@@ -165,17 +169,18 @@ function s1(){
   var sec =
     '<div class="hero">'+hero+'</div>'+krow+
     '<div class="cols"><div class="col"><h3>📈 Weekly Sales Trend (last '+tr.length+' weeks)</h3>'+bars(tr,'#E8578E',money)+
-          '<h3 style="margin-top:10px">🏆 Weekly Top Sellers</h3>'+
-          '<div class="scrollbox"><table><thead><tr><th>Week</th><th>Top Seller</th><th>Sales</th></tr></thead><tbody>'+
-          wts.map(function(r){ return '<tr><td>'+esc(r.week)+'</td><td>'+esc(r.seller)+'</td><td>'+money(r.amt)+'</td></tr>'; }).join('')+
-          '</tbody></table></div></div>'+
-    '<div class="col"><h3>★ Top Selling Products</h3>'+bars(topBrand,'#E8578E',money)+
       '<h3 style="margin-top:10px">💼 Sales by Channel</h3>'+
       '<div class="scrollbox"><table><thead><tr><th>Channel</th><th>Sales</th><th>Orders</th><th>Avg</th></tr></thead><tbody>'+
       Object.keys(dCh).map(function(ch){
         var o=dCh[ch]; var avg=o.orders?o.amt/o.orders:0;
         return '<tr><td>'+esc(ch)+'</td><td>'+money(o.amt)+'</td><td>'+num(o.orders)+'</td><td>'+money(avg)+'</td></tr>';
-      }).join('')+'</tbody></table></div></div></div>';
+      }).join('')+'</tbody></table></div></div>'+
+    '<div class="col"><h3>★ Top Selling Products</h3>'+bars(topBrand,'#E8578E',money)+
+      '<h3 style="margin-top:10px">🏆 Weekly Top Sellers</h3>'+
+      '<div class="scrollbox"><table><thead><tr><th>Week</th><th>#1</th><th>#2</th><th>#3</th></tr></thead><tbody>'+
+      '<tr><td>'+esc(curWk.label)+'</td>'+curTop.map(function(s){ return '<td>'+esc(s.seller)+'<br><span class="small">'+money(s.amt)+'</span></td>'; }).join('')+'</tr>'+
+      (prevWk ? '<tr><td>'+esc(prevWk.label)+'</td>'+prevTop.map(function(s){ return '<td>'+esc(s.seller)+'<br><span class="small">'+money(s.amt)+'</span></td>'; }).join('')+'</tr>' : '')+
+      '</tbody></table></div></div></div>';
   return slide(1, 'Weekly Sales & Business Overview',
     'How did we perform this week?'+(sPrev!=null?'  ·  Compared to '+weeks[weeks[sel].prev].label+' ('+money(sPrev)+')':''), sec);
 }
