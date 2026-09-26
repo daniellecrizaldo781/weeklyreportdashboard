@@ -112,6 +112,17 @@ function refund_series(n){
   }
   return arr;
 }
+function weeklyTopSellers(n){
+  var arr = [];
+  var startIdx = order.indexOf(sel); if(startIdx<0) startIdx=order.length-1;
+  for(var i=startIdx;i>=0 && arr.length<n;i--){
+    var wk = weeks[order[i]];
+    var agents = (wk.sales && wk.sales.byAgent) || [];
+    var top = agents.reduce(function(a,b){ return (b.amt>a.amt)?b:a; }, {a:'—', amt:0});
+    arr.push({week: wk.label, seller: top.a, amt: top.amt});
+  }
+  return arr;
+}
 
 function slide(num, title, sub, bodyHtml, note){
   var wb = sel ? '<span class="weekbadge">'+esc(weeks[sel].label)+'</span>' : '';
@@ -137,7 +148,7 @@ function s1(){
       esc(ch)+' &nbsp;<b>'+money(o.amt)+'</b> &middot; '+num(o.orders)+' orders</span>';
   }).join('') || '<span class="small">No channel data</span>';
   var topBrand = (s.byBrand||[]).slice(0,3).map(function(b){ return {l:b.b, v:b.amt}; });
-  var topAgent = (s.byAgent||[]).slice(0,3).map(function(a){ return {l:a.a, v:a.amt}; });
+  var wts = weeklyTopSellers(5);
   var tr = sales_series(5);
   var hero =
     '<div class="hero"><div class="lbl">Weekly Sales</div>'+
@@ -154,7 +165,10 @@ function s1(){
   var sec =
     '<div class="hero">'+hero+'</div>'+krow+
     '<div class="cols"><div class="col"><h3>📈 Weekly Sales Trend (last '+tr.length+' weeks)</h3>'+bars(tr,'#E8578E',money)+
-      '<h3 style="margin-top:10px">🏆 Top Sellers</h3>'+bars(topAgent,'#B99BDD',money)+'</div>'+
+          '<h3 style="margin-top:10px">🏆 Weekly Top Sellers</h3>'+
+          '<div class="scrollbox"><table><thead><tr><th>Week</th><th>Top Seller</th><th>Sales</th></tr></thead><tbody>'+
+          wts.map(function(r){ return '<tr><td>'+esc(r.week)+'</td><td>'+esc(r.seller)+'</td><td>'+money(r.amt)+'</td></tr>'; }).join('')+
+          '</tbody></table></div></div>'+
     '<div class="col"><h3>★ Top Selling Products</h3>'+bars(topBrand,'#E8578E',money)+
       '<h3 style="margin-top:10px">💼 Sales by Channel</h3>'+
       '<div class="scrollbox"><table><thead><tr><th>Channel</th><th>Sales</th><th>Orders</th><th>Avg</th></tr></thead><tbody>'+
