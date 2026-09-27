@@ -61,6 +61,35 @@ function vBars(rows, color, valFmt){
   return out + '</div>';
 }
 
+function comboChart(rows, color, valFmt){
+  if(!rows || !rows.length) return '<div class="small" style="padding:10px">No data for this week.</div>';
+  var W=600, H=300, n=rows.length;
+  var max = Math.max.apply(null, rows.map(function(r){ return r.v||0; }));
+  var padB=34, padT=26, plotH=H-padB-padT;
+  var step=W/n, barW=step*0.5;
+  var bars='', pts=[], labels='', vals='', deltas='';
+  rows.forEach(function(r,i){
+    var x=i*step+step/2;
+    var h=max>0?(r.v/max)*plotH:0;
+    var y=padT+(plotH-h);
+    bars+='<rect x="'+(x-barW/2)+'" y="'+y+'" width="'+barW+'" height="'+h+'" rx="3" fill="'+color+'"/>';
+    pts.push(x+','+y);
+    labels+='<text x="'+x+'" y="'+(H-8)+'" text-anchor="middle" class="cl-lbl">'+esc(r.l)+'</text>';
+    vals+='<text x="'+x+'" y="'+(y-6)+'" text-anchor="middle" class="cl-val">'+value(r.v,valFmt)+'</text>';
+    if(i>0){
+      var prev=rows[i-1].v||0, cur=r.v||0, d=cur-prev;
+      var cls=d>0?'up':(d<0?'down':'flat');
+      var prevX=(i-1)*step+step/2, curX=x;
+      var prevH=max>0?(rows[i-1].v/max)*plotH:0, curH=h;
+      var prevY=padT+(plotH-prevH), curY=y;
+      var midX=(prevX+curX)/2, midY=(prevY+curY)/2;
+      deltas+='<text x="'+midX+'" y="'+(midY-8)+'" text-anchor="middle" class="cl-delta '+cls+'">'+(d>0?'▲':'▼')+' '+value(Math.abs(d),valFmt)+'</text>';
+    }
+  });
+  var line='<polyline points="'+pts.join(' ')+'" fill="none" stroke="#3A2A33" stroke-width="2" stroke-linejoin="round"/>';
+  var dots=rows.map(function(r,i){ var x=i*step+step/2; var h=max>0?(r.v/max)*plotH:0; var y=padT+(plotH-h); return '<circle cx="'+x+'" cy="'+y+'" r="3.5" fill="#3A2A33"/>'; }).join('');
+  return '<div class="combo"><svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto">'+bars+line+dots+vals+deltas+labels+'</svg></div>';
+}
 function stackedBars(rows, colorA, colorB){
   if(!rows || !rows.length) return '<div class="small" style="padding:10px">No data.</div>';
   var max = Math.max.apply(null, rows.map(function(r){ return (r.a||0)+(r.b||0); }));
@@ -70,8 +99,8 @@ function stackedBars(rows, colorA, colorB){
     var wa=max>0?(r.a||0)/max*100:0, wb=max>0?(r.b||0)/max*100:0;
     out += '<div class="bar-row"><div class="bar-lbl" title="'+esc(r.l)+'">'+esc(r.l)+'</div>'+
       '<div class="bar-track" style="display:flex">'+
-        '<div class="bar-fill" style="width:'+wa+'%;background:'+colorA+';border-radius:8px 0 0 8px"></div>'+
-        '<div class="bar-fill" style="width:'+wb+'%;background:'+colorB+';border-radius:0 8px 8px 0"></div>'+
+        '<div class="bar-fill" style="width:'+wa+'%;background:'+colorA+';border-radius:8px 0 0 8px">'+(r.a>0?'<span class="seg-count">'+num(r.a)+'</span>':'')+'</div>'+
+        '<div class="bar-fill" style="width:'+wb+'%;background:'+colorB+';border-radius:0 8px 8px 0">'+(r.b>0?'<span class="seg-count">'+num(r.b)+'</span>':'')+'</div>'+
       '</div><div class="bar-val"><b>'+num(tot)+'</b></div></div>';
   });
   return out + '</div>';
@@ -199,7 +228,7 @@ function s2(){
       '<div class="small" style="flex:none">Branch Share</div>'+donut(share,['#E8578E','#B99BDD','#4E9BE5','#7FCBA6','#F0A579'])+'</div>';
   }
   return slide(2,'IVR Branch Performance','Top 5 IVR branches — answered vs abandoned & share',
-    '<div class="cols">'+ivrBlock('OHA')+ivrBlock('NON-OHA')+'</div>');
+    '<div class="cols ivr">'+ivrBlock('OHA')+ivrBlock('NON-OHA')+'</div>');
 }
 
 /* ================= SLIDE 3 — Call Breakdown ================= */
@@ -257,7 +286,7 @@ function s5(){
     kpi('Refund $ — now', money(curAmt), prevAmt!=null? 'vs '+money(prevAmt):'','accent')+
     kpi('Refund Tickets', num(bd.refundTickets||0), pbd?'vs '+num(pbd.refundTickets||0):'')+
     kpi('WoW Change', prevAmt!=null? moneyS(curAmt-prevAmt):'—', prevAmt? pctS((curAmt-prevAmt)/prevAmt*100):'')+'</div>';
-  var body = rows + '<div class="col" style="flex:1"><h3>📈 Refund Trend — refunded amount, last '+tr.length+' weeks</h3>'+vBars(tr,'#D9455F',money)+'</div>';
+  var body = rows + '<div class="col" style="flex:1"><h3>📈 Refund Trend — refunded amount, last '+tr.length+' weeks</h3>'+comboChart(tr,'#D9455F',money)+'</div>';
   return slide(5,'Week-over-Week Refund Trends','Refunded amount across recent weeks', body);
 }
 
