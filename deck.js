@@ -380,6 +380,8 @@ function render(){
   var holder = document.getElementById('deck');
   holder.innerHTML = SLIDES[si]();
   var act = holder.querySelector('.slide'); if(act) act.classList.add('active');
+  // renumber the slide badge to its position in the (possibly filtered) deck
+  var sn = holder.querySelector('.snum'); if(sn) sn.textContent = (si+1);
   var dots = document.getElementById('dots');
   if(dots){
     dots.innerHTML = SLIDES.map(function(f,i){
