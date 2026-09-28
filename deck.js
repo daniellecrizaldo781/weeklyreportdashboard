@@ -315,7 +315,6 @@ function s7(){
   function avgAht(arr){ var secs=arr.map(function(b){return ahtToSec(b.aht);}).filter(function(x){return x!=null;}); if(!secs.length) return null; return secs.reduce(function(a,b){return a+b;},0)/secs.length; }
   var ap=avgPick(cs), apP=avgPick(pcs), aa=avgAht(cs), aaP=avgAht(pcs);
   var krow = '<div class="kpis">'+
-    kpi('Agents', num(t.count||0), 'this week')+
     kpi('Team Avg Score', (t.avgOverall||0)+'%', 'week total / 100','accent')+
     kpi('Top Performer', top?'<span style="font-size:16px">'+esc(top.a)+'</span>':'—', top? (top.total+'% this week') : '')+
     kpi('Avg Pick Up', ap!=null? ap.toFixed(1)+'%':'—', apP!=null? delta(ap,apP,{fmt:function(d){return pctS(d);},invert:false}):'')+
@@ -323,20 +322,18 @@ function s7(){
   var chips = '<div class="chiprow">'+
     '<span class="pill pink">Prev Week Pick Up: '+(apP!=null? apP.toFixed(1)+'%':'—')+'</span>'+
     '<span class="pill blue">Prev Week Avg AHT: '+(aaP!=null? secToAht(aaP):'—')+'</span></div>';
-  var pcsMap = {}; pcs.forEach(function(x){ pcsMap[x.a]=x; });
-  var tr = '<tr><th>Rank</th><th>Agent</th><th>Overall</th><th>Pick Up %</th><th>Δ</th><th>AHT</th><th>Δ</th><th>Attempts</th></tr>';
+  var tr = '<tr><th>Rank</th><th>Agent</th><th>Ringing Attempts</th><th>Picked Up</th><th>Not Picked</th><th>Pick Up %</th><th>AHT</th></tr>';
   var tb = rows.map(function(r,i){
-    var cs2=r.calls||{}; var pc=pcsMap[r.a]||{};
-    var pu = cs2.pickupRate!=null? cs2.pickupRate+'%':'—';
-    var puD = (cs2.pickupRate!=null && pc.pickupRate!=null)? delta(cs2.pickupRate,pc.pickupRate,{fmt:function(d){return pctS(d);},invert:false}):'';
-    var aht = cs2.aht? esc(cs2.aht):'—';
-    var ahtD = (cs2.aht && pc.aht)? delta(ahtToSec(cs2.aht),ahtToSec(pc.aht),{fmt:function(d){return (d>0?'+':'-')+Math.abs(d).toFixed(0)+'s';},invert:true}):'';
-    return '<tr><td>'+(i+1)+'</td><td>'+esc(r.a)+'</td><td><b>'+r.total+'%</b></td>'+
-      '<td>'+pu+'</td><td>'+puD+'</td><td>'+aht+'</td><td>'+ahtD+'</td>'+
-      '<td>'+(cs2.attempts?num(cs2.attempts):'—')+'</td></tr>';
-  }).join('') || '<tr><td colspan="8" class="small">No scorecard for this week.</td></tr>';
+    var cs2=r.calls||{};
+    return '<tr><td>'+(i+1)+'</td><td>'+esc(r.a)+'</td>'+
+      '<td>'+(cs2.attempts!=null?num(cs2.attempts):'—')+'</td>'+
+      '<td>'+(cs2.pickedUp!=null?num(cs2.pickedUp):'—')+'</td>'+
+      '<td>'+(cs2.notPickedUp!=null?num(cs2.notPickedUp):'—')+'</td>'+
+      '<td>'+(cs2.pickupRate!=null?cs2.pickupRate+'%':'—')+'</td>'+
+      '<td>'+(cs2.aht?esc(cs2.aht):'—')+'</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="small">No scorecard for this week.</td></tr>';
   var body = krow + chips + '<div class="scrollbox"><table><thead>'+tr+'</thead><tbody>'+tb+'</tbody></table></div>'+
-    '<div class="small">Overall = TOTAL SCORE (out of 100). Δ = change vs previous week. Green = better (pickup up, AHT down).</div>';
+    '<div class="small">Picked Up = calls answered · Not Picked = calls missed.</div>';
   return slide(7,'Team Weekly Performance','Individual CSR scorecards & call productivity','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
 }
 
