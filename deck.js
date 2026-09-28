@@ -34,7 +34,7 @@ function value(v,fmt){ return fmt?fmt(v):num(v); }
 function ahtToSec(s){ if(!s) return null; var p=s.split(':'); return (+p[0])*3600+(+p[1])*60+(+p[2]||0); }
 function secToAht(sec){ sec=Math.round(sec||0); var h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60; return (h?h+':':'')+(m<10&&h?'0':'')+m+':'+(s<10?'0':'')+s; }
 
-function bars(rows, color, valFmt){
+function bars(rows, color, valFmt, valClass){
   if(!rows || !rows.length) return '<div class="small" style="padding:10px">No data for this week.</div>';
   var max = Math.max.apply(null, rows.map(function(r){ return r.v||0; }));
   var out = '<div class="bars">';
@@ -43,7 +43,7 @@ function bars(rows, color, valFmt){
     var vs = r.vs||'';
     out += '<div class="bar-row"><div class="bar-lbl" title="'+esc(r.l)+'">'+esc(r.l)+'</div>'+
       '<div class="bar-track"><div class="bar-fill" style="width:'+w+'%;background:'+color+'"></div></div>'+
-      '<div class="bar-val">'+value(r.v,valFmt)+' <span class="small">'+vs+'</span></div></div>';
+      '<div class="bar-val'+(valClass?' '+valClass:'')+'">'+value(r.v,valFmt)+' <span class="small">'+vs+'</span></div></div>';
   });
   return out + '</div>';
 }
@@ -257,18 +257,18 @@ function s4(){
   var pbd = p && p.call.breakdown ? p.call.breakdown : null;
   var oha = bd.oha||{}, nonoha = bd.nonoha||{};
   var poha = pbd && pbd.oha ? pbd.oha : null, pnon = pbd && pbd.nonoha ? pbd.nonoha : null;
-  var ohaReasons = (oha.topRefundReason||[]).slice(0,4).map(function(x){ return {l:x.k, v:x.refund, vs:num(x.count)+' tk'}; });
-  var nonohaReasons = (nonoha.topRefundReason||[]).slice(0,4).map(function(x){ return {l:x.k, v:x.refund, vs:num(x.count)+' tk'}; });
+  var ohaReasons = (oha.topRefundReason||[]).slice(0,4).map(function(x){ return {l:x.k, v:x.refund, vs:num(x.count)+' '+(x.count===1?'ticket':'tickets')}; });
+  var nonohaReasons = (nonoha.topRefundReason||[]).slice(0,4).map(function(x){ return {l:x.k, v:x.refund, vs:num(x.count)+' '+(x.count===1?'ticket':'tickets')}; });
   var krow = '<div class="kpis">'+
     kpi('OHA Tickets', num(oha.tickets||0), '', 'tot')+
     kpi('OHA Refund Tickets', num(oha.refundTickets||0), '', 'tot')+
     kpi('Non-OHA Tickets', num(nonoha.tickets||0), '', 'blue')+
     kpi('Non-OHA Refund Tickets', num(nonoha.refundTickets||0), '', 'blue')+
-    kpi('OHA Refunded', money(oha.refundAmount||0), poha?delta(oha.refundAmount||0,poha.refundAmount||0,{fmt:moneyS,invert:true}):'', 'tot')+
-    kpi('Non-OHA Refunded', money(nonoha.refundAmount||0), pnon?delta(nonoha.refundAmount||0,pnon.refundAmount||0,{fmt:moneyS,invert:true}):'', 'blue')+'</div>';
+    kpi('OHA Refunded', money(oha.refundAmount||0), poha? 'Prev '+money(poha.refundAmount||0)+' &middot; '+delta(oha.refundAmount||0,poha.refundAmount||0,{fmt:moneyS,invert:true}):'', 'tot')+
+    kpi('Non-OHA Refunded', money(nonoha.refundAmount||0), pnon? 'Prev '+money(pnon.refundAmount||0)+' &middot; '+delta(nonoha.refundAmount||0,pnon.refundAmount||0,{fmt:moneyS,invert:true}):'', 'blue')+'</div>';
   var body = krow + '<div class="cols">'+
-    '<div class="col"><h3><span class="dot" style="background:#E8578E"></span>OHA Top Refund Reasons</h3>'+bars(ohaReasons,'#E8578E',money)+'</div>'+
-    '<div class="col"><h3><span class="dot" style="background:#4E9BE5"></span>Non-OHA Top Refund Reasons</h3>'+bars(nonohaReasons,'#4E9BE5',money)+'</div></div>'+
+    '<div class="col"><h3><span class="dot" style="background:#E8578E"></span>OHA Top Refund Reasons</h3>'+bars(ohaReasons,'#E8578E',money,'hl')+'</div>'+
+    '<div class="col"><h3><span class="dot" style="background:#4E9BE5"></span>Non-OHA Top Refund Reasons</h3>'+bars(nonohaReasons,'#4E9BE5',money,'hl')+'</div></div>'+
     '<div class="col" style="flex:1"><h3>🏷 Top Refund Reason per Brand</h3>'+
     '<div class="scrollbox"><table><thead><tr><th>Brand</th><th>Refunded</th><th>Tickets</th><th>Top Reason</th></tr></thead><tbody>'+
     (bd.byBrand||[]).map(function(x){ return '<tr><td>'+esc(x.brand)+'</td><td>'+money(x.refund)+'</td><td>'+num(x.tickets)+'</td><td>'+esc(x.topReason)+'</td></tr>'; }).join('')+
@@ -364,7 +364,14 @@ function s8(){
   return slide(8,'Scorecard Record','All CSR scores this week','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
 }
 
-var SLIDES = [s1,s2,s3,s4,s5,s6,s7,s8];
+var ALL_SLIDES = [s1,s2,s3,s4,s5,s6,s7,s8];
+// Optional slide filter: set window.__REPORT_SLIDES to a 1-based array of slide
+// indices to render (e.g. [2,3,4,5,6] to skip slide 1 and the last 2). When unset,
+// all 8 slides render. This lets the Call EOD dashboard reuse this same deck.js
+// while showing only the call slides, and stay in sync with layout changes here.
+var SLIDES = (window.__REPORT_SLIDES && window.__REPORT_SLIDES.length)
+  ? window.__REPORT_SLIDES.map(function(i){ return ALL_SLIDES[i-1]; })
+  : ALL_SLIDES;
 
 /* ---------- nav ---------- */
 function render(){
