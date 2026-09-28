@@ -65,8 +65,8 @@ function comboChart(rows, color, valFmt){
   if(!rows || !rows.length) return '<div class="small" style="padding:10px">No data for this week.</div>';
   var max = Math.max.apply(null, rows.map(function(r){ return r.v||0; }));
   var n = rows.length, stepW = 100/n;
-  var cols=[], pts=[];
-  for(var i=0;i<n;i++){
+  var cols=[], pts=[], i;
+  for(i=0;i<n;i++){
     var r=rows[i];
     var h = max>0 ? Math.max(2,(r.v/max)*100) : 0;
     var cx = (i*stepW)+(stepW/2);
@@ -75,27 +75,27 @@ function comboChart(rows, color, valFmt){
     var d='';
     if(i>0){
       var pv=rows[i-1].v||0, cv=r.v||0, dd=cv-pv;
-      var ddcls=dd>0?'up':(dd<0?'down':'flat');
-      d = dd!==0 ? '<span class="cb-delta '+ddcls+'">'+(dd>0?'&#9650;':'&#9660;')+' '+value(Math.abs(dd),valFmt)+'</span>' : '<span class="cb-delta flat">&#8226;</span>';
+      var cls=dd>0?'up':(dd<0?'down':'flat');
+      d = dd!==0 ? '<span class="cb-delta '+cls+'">'+(dd>0?'&#9650;':'&#9660;')+' '+value(Math.abs(dd),valFmt)+'</span>' : '<span class="cb-delta flat">&bull;</span>';
     }
+    var valOn = '<span class="ct-val" style="bottom:calc('+h+'% + 4px)">'+value(r.v,valFmt)+'</span>';
     cols.push(
       '<div class="ct">'+
         '<div class="ct-delta">'+d+'</div>'+
         '<div class="ct-track">'+
-          '<div class="ct-bar" style="height:'+h.toFixed(1)+'%;background:'+color+'"></div>'+
-          '<span class="ct-val" style="bottom:calc('+h.toFixed(1)+'% + 2px)">'+value(r.v,valFmt)+'</span>'+
+          '<div class="ct-bar" style="height:'+h+'%;background:'+color+'"></div>'+
+          valOn+
         '</div>'+
+        '<div class="ct-week" title="'+esc(r.l)+'">'+esc(r.l)+'</div>'+
       '</div>');
   }
   var line='<polyline points="'+pts.join(' ')+'" fill="none" stroke="#3A2A33" stroke-width="2.5" stroke-linejoin="round"/>';
-  var dots=pts.map(function(p){ var xy=p.split(','); return '<circle cx="'+xy[0]+'" cy="'+xy[1]+'" r="1.7" fill="#3A2A33"/>'; }).join('');
-  var weeks=rows.map(function(r){ return '<div class="cw" title="'+esc(r.l)+'">'+esc(r.l)+'</div>'; }).join('');
+  var dots=pts.map(function(p){ var xy=p.split(','); return '<circle cx="'+xy[0]+'" cy="'+xy[1]+'" r="1.6" fill="#3A2A33"/>'; }).join('');
   return '<div class="combo">'+
     '<div class="combo-plot">'+
       '<div class="combo-trax">'+cols.join('')+'</div>'+
       '<svg class="combo-line" viewBox="0 0 100 100" preserveAspectRatio="none">'+line+dots+'</svg>'+
     '</div>'+
-    '<div class="combo-weeks">'+weeks+'</div>'+
     '</div>';
 }function stackedBars(rows, colorA, colorB){
   if(!rows || !rows.length) return '<div class="small" style="padding:10px">No data.</div>';
