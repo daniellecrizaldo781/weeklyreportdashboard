@@ -64,20 +64,31 @@ function vBars(rows, color, valFmt){
 function comboChart(rows, color, valFmt){
   if(!rows || !rows.length) return '<div class="small" style="padding:10px">No data for this week.</div>';
   var max = Math.max.apply(null, rows.map(function(r){ return r.v||0; }));
-  var n = rows.length, i, cols='';
+  var n = rows.length, stepW = 100/n, i;
+  var deltas='', vals='', tracks='', weeks='', pts=[];
   for(i=0;i<n;i++){
     var r=rows[i], h = max>0 ? Math.max(3,(r.v/max)*100) : 0;
+    var cx = (i*stepW)+(stepW/2);
+    var topY = 100-h;
+    pts.push(cx.toFixed(2)+','+topY.toFixed(2));
     var d='';
     if(i>0){
       var pv=rows[i-1].v||0, cv=r.v||0, dd=cv-pv, cl=dd>0?'up':(dd<0?'down':'flat');
-      d = dd!==0 ? '<div class="vbar-delta '+cl+'">'+(dd>0?'&#9650;':'&#9660;')+' '+value(Math.abs(dd),valFmt)+'</div>' : '<div class="vbar-delta flat">&bull;</div>';
-    } else d='<div class="vbar-delta"></div>';
-    cols+='<div class="vbar">'+d+
-      '<div class="vbar-val">'+value(r.v,valFmt)+'</div>'+
-      '<div class="vbar-track"><div class="vbar-fill" style="height:'+h+'%;background:'+color+'"></div></div>'+
-      '<div class="vbar-lbl" title="'+esc(r.l)+'">'+esc(r.l)+'</div></div>';
+      d = dd!==0 ? '<div class="cd '+cl+'">'+(dd>0?'&#9650;':'&#9660;')+' '+value(Math.abs(dd),valFmt)+'</div>' : '<div class="cd flat">&bull;</div>';
+    } else d='<div class="cd"></div>';
+    deltas += d;
+    vals += '<div class="cv">'+value(r.v,valFmt)+'</div>';
+    tracks += '<div class="ct"><div class="ct-track"><div class="ct-bar" style="height:'+h+'%;background:'+color+'"></div></div></div>';
+    weeks += '<div class="cw" title="'+esc(r.l)+'">'+esc(r.l)+'</div>';
   }
-  return '<div class="vbars combo">'+cols+'</div>';
+  var line='<polyline points="'+pts.join(' ')+'" fill="none" stroke="#3A2A33" stroke-width="2.5" stroke-linejoin="round"/>';
+  var dots=pts.map(function(p){ var xy=p.split(','); return '<circle cx="'+xy[0]+'" cy="'+xy[1]+'" r="1.6" fill="#3A2A33"/>'; }).join('');
+  return '<div class="combo">'+
+    '<div class="combo-row">'+deltas+'</div>'+
+    '<div class="combo-row">'+vals+'</div>'+
+    '<div class="combo-plot">'+tracks+'<svg class="combo-line" viewBox="0 0 100 100" preserveAspectRatio="none">'+line+dots+'</svg></div>'+
+    '<div class="combo-row">'+weeks+'</div>'+
+    '</div>';
 }function stackedBars(rows, colorA, colorB){
   if(!rows || !rows.length) return '<div class="small" style="padding:10px">No data.</div>';
   var max = Math.max.apply(null, rows.map(function(r){ return (r.a||0)+(r.b||0); }));
