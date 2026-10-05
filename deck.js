@@ -130,6 +130,17 @@ function sales_series(n){
   }
   return arr;
 }
+function refund_series_by_channel(n, ch){
+  var arr = [];
+  var startIdx = order.indexOf(sel); if(startIdx<0) startIdx=order.length-1;
+  for(var i=startIdx;i>=0 && arr.length<n;i--){
+    var wk = weeks[order[i]];
+    var bd = wk.call && wk.call.breakdown ? wk.call.breakdown : null;
+    var ref = bd && bd[ch] ? (bd[ch].refundAmount||0) : 0;
+    arr.unshift({l:wk.label, v:ref});
+  }
+  return arr;
+}
 function refund_series(n){
   var arr = [];
   var startIdx = order.indexOf(sel); if(startIdx<0) startIdx=order.length-1;
@@ -279,13 +290,20 @@ function s4(){
 function s5(){
   var c = cur(), p = prevWeek();
   var bd = c.call.breakdown||{}, pbd = p && p.call.breakdown ? p.call.breakdown : null;
-  var tr = refund_series(4); // 4 weeks, oldest to latest
+  var trAll = refund_series(4);
+  var trOha = refund_series_by_channel(4,'oha');
+  var trNon = refund_series_by_channel(4,'nonoha');
   var curAmt = bd.refundAmount||0, prevAmt = pbd ? pbd.refundAmount : null;
   var rows = '<div class="kpis">'+
     kpi('Refund $ — now', money(curAmt), prevAmt!=null? 'vs '+money(prevAmt):'','accent')+
     kpi('Refund Tickets', num(bd.refundTickets||0), pbd?'vs '+num(pbd.refundTickets||0):'')+
     kpi('WoW Change', prevAmt!=null? moneyS(curAmt-prevAmt):'—', prevAmt? pctS((curAmt-prevAmt)/prevAmt*100):'')+'</div>';
-  var body = rows + '<div class="col" style="flex:1"><h3>📈 Refund Trend — refunded amount, last '+tr.length+' weeks</h3>'+comboChart(tr,'#D9455F',money)+'</div>';
+  var body = rows +
+    '<div class="cols">'+
+      '<div class="col"><h3><span class="dot" style="background:#E8578E"></span>OHA Refund Trend</h3>'+comboChart(trOha,'#E8578E',money)+'</div>'+
+      '<div class="col"><h3><span class="dot" style="background:#4E9BE5"></span>Non-OHA Refund Trend</h3>'+comboChart(trNon,'#4E9BE5',money)+'</div>'+
+    '</div>'+
+    '<div class="col" style="flex:1"><h3>📈 All Channels Refund Trend</h3>'+comboChart(trAll,'#D9455F',money)+'</div>';
   return slide(5,'Week-over-Week Refund Trends','Refunded amount across recent weeks', body);
 }
 

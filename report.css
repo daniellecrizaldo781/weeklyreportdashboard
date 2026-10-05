@@ -200,16 +200,16 @@ tr td:first-child{font-weight:700;}
 .vbar-delta.flat{color:var(--muted);}
 
 /* combo chart (slide 5) - bars + trend line */
-.combo{display:flex;flex-direction:column;gap:4px;width:100%;}
+.combo{display:flex;flex-direction:column;gap:2px;width:100%;}
 .combo-row{display:flex;}
 .combo-row .cd,.combo-row .cv,.combo-row .cw{flex:1;min-width:0;text-align:center;}
-.cd{height:16px;font-size:11px;font-weight:800;white-space:nowrap;}
+.cd{height:13px;font-size:10.5px;font-weight:800;white-space:nowrap;}
 .cd.up{color:#2E9E6B;}
 .cd.down{color:#D9455F;}
 .cd.flat{color:var(--muted);}
-.cv{font-size:13px;font-weight:800;color:var(--ink);line-height:1.1;}
-.cw{font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.15;}
-.combo-plot{position:relative;height:200px;display:flex;}
+.cv{font-size:12px;font-weight:800;color:var(--ink);line-height:1.05;}
+.cw{font-size:11.5px;font-weight:700;color:var(--ink);line-height:1.1;}
+.combo-plot{position:relative;height:112px;display:flex;}
 .combo-plot .ct{flex:1;position:relative;}
 .ct-track{position:absolute;bottom:0;left:8%;right:8%;top:0;background:#fbe3ec;border-radius:8px;}
 .ct-bar{position:absolute;bottom:0;left:30%;right:30%;border-radius:6px 6px 0 0;}
