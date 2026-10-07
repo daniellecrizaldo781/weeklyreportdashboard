@@ -280,16 +280,24 @@ def agg_call(call):
         weeks[wk] = wk_dict
 
     # --- back-office hours per agent per week (from status) ---
-    bo = defaultdict(lambda: defaultdict(float))
-    for r in call.get("status", {}).get("rows", []):
-        w = week_of(r.get("d"))
-        if w and r.get("status") == BACK_OFFICE:
-            bo[w][r.get("agent")] += (r.get("min") or 0)
-    for w, agents in bo.items():
-        if w in weeks:
-            weeks[w]["backOffice"] = sorted(
-                [{"a": a, "hrs": round(m / 60.0, 1)} for a, m in agents.items()],
-                key=lambda x: -x["hrs"])
+        bo = defaultdict(lambda: defaultdict(float))
+        dnd = defaultdict(lambda: defaultdict(float))
+        for r in call.get("status", {}).get("rows", []):
+            w = week_of(r.get("d"))
+            if w and r.get("status") == BACK_OFFICE:
+                bo[w][r.get("agent")] += (r.get("min") or 0)
+            elif w and r.get("status") == "do_not_disturb":
+                dnd[w][r.get("agent")] += (r.get("min") or 0)
+        for w, agents in bo.items():
+            if w in weeks:
+                weeks[w]["backOffice"] = sorted(
+                    [{"a": a, "hrs": round(m / 60.0, 1)} for a, m in agents.items()],
+                    key=lambda x: -x["hrs"])
+        for w, agents in dnd.items():
+            if w in weeks:
+                weeks[w]["dnd"] = sorted(
+                    [{"a": a, "hrs": round(m / 60.0, 1)} for a, m in agents.items()],
+                    key=lambda x: -x["hrs"])
 
     return weeks
 

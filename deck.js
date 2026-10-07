@@ -310,16 +310,24 @@ function s5(){
 /* ================= SLIDE 6 — Back Office Hours ================= */
 function s6(){
   var bo = (cur().call && cur().call.backOffice) || [];
+  var dnd = (cur().call && cur().call.dnd) || [];
   var total = bo.reduce(function(a,b){return a+b.hrs;},0);
+  var dndTotal = dnd.reduce(function(a,b){return a+b.hrs;},0);
   var rows = bo.map(function(b){ return {l:b.a, v:b.hrs}; });
+  var dndRows = dnd.map(function(b){ return {l:b.a, v:b.hrs}; });
   var krow = '<div class="kpis">'+
     kpi('Agents (back office)', num(bo.length), 'this week')+
     kpi('Total Back-Office Hours', num(Math.round(total*10)/10)+' h', 'all agents','accent')+
-    kpi('Avg per Agent', bo.length? (Math.round(total/bo.length*10)/10)+' h':'0 h', 'active this week')+'</div>';
+    kpi('Avg per Agent', bo.length? (Math.round(total/bo.length*10)/10)+' h':'0 h', 'active this week')+
+    kpi('DND Agents', num(dnd.length), 'this week','blue')+
+    kpi('Total DND Hours', num(Math.round(dndTotal*10)/10)+' h', 'all agents','blue')+'</div>';
   var body = krow + '<div class="col" style="flex:1"><h3>🕐 Back-Office Hours by Agent</h3>'+
     (rows.length?'':'<div class="small" style="padding:12px">No back-office activity recorded this week.</div>')+
-    bars(rows,'#B99BDD',function(v){return v+' h';})+'</div>';
-  return slide(6,'Back Office Hours','Individual agent back-office time','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
+    bars(rows,'#B99BDD',function(v){return v+' h';})+
+    '<h3 style="margin-top:14px">🚫 DND (Do Not Disturb) Hours by Agent</h3>'+
+    (dndRows.length?'':'<div class="small" style="padding:12px">No DND activity recorded this week.</div>')+
+    bars(dndRows,'#4E9BE5',function(v){return v+' h';})+'</div>';
+  return slide(6,'Back Office Hours','Individual agent back-office & DND time','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
 }
 
 /* ================= SLIDE 7 — Team Weekly Performance ================= */
