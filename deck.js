@@ -3,7 +3,9 @@
 "use strict";
 var R = window.REPORT_DATA || { weeks:{}, weekOrder:[] };
 var weeks = R.weeks, order = R.weekOrder || [];
-var sel = (function(){ for(var i=order.length-1;i>=0;i--){ var w=weeks[order[i]]; if(w && w.call && w.call.combined && w.call.combined.total>0) return order[i]; } return order.length?order[order.length-1]:null; })();
+// pick the latest week that has *meaningful* call volume (not a stub with
+// 1–2 out-of-hours calls and 0 answered), so slides don't show "No data".
+var sel = (function(){ for(var i=order.length-1;i>=0;i--){ var w=weeks[order[i]]; if(w && w.call && w.call.combined && (w.call.combined.answered>0 || w.call.combined.total>=5)) return order[i]; } for(var i=order.length-1;i>=0;i--){ var w=weeks[order[i]]; if(w && w.call && w.call.combined && w.call.combined.total>0) return order[i]; } return order.length?order[order.length-1]:null; })();
 var si = 0;
 
 function cur(){ return weeks[sel] || null; }
