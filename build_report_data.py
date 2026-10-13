@@ -380,6 +380,33 @@ def agg_team(team):
                 })
             rows.sort(key=lambda x: -x["productivityPct"])
             weeks[w]["emailProductivity"] = rows
+            # per-day ticket matrix: agent -> [tickets for each day]
+            days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            by_agent_day = defaultdict(lambda: defaultdict(lambda: 0))
+            for r in ep:
+                if r["week"] != w:
+                    continue
+                day_idx = days.index(r["day"]) if r["day"] in days else None
+                if day_idx is not None:
+                    tickets = r.get("tickets")
+                    by_agent_day[r["agent"]][day_idx] = tickets if tickets is not None else 0
+            # sort agents by total tickets descending
+            ep_rows_total = []
+            for agent, day_map in by_agent_day.items():
+                total = sum(day_map.values())
+                ep_rows_total.append((agent, day_map, total))
+            ep_rows_total.sort(key=lambda x: -x[2])
+            # also preserve the productivityPct ordering for the summary table
+            pp_map = {r["a"]: r["productivityPct"] for r in rows}
+            ep_rows_total.sort(key=lambda x: -(pp_map.get(x[0], 0)))
+            daily_matrix = {
+                "days": days,
+                "agents": [
+                    {"a": agent, "tickets": {days[di]: day_map[di] for di in range(7)}, "total": total}
+                    for agent, day_map, total in ep_rows_total
+                ]
+            }
+            weeks[w]["dailyEmailTickets"] = daily_matrix
     return weeks
 
 
@@ -417,7 +444,7 @@ def main():
             "sales": s_weeks.get(w, {"total": 0, "orders": 0, "avg": 0,
                                      "byChannel": {}, "byBrand": [], "byAgent": []}),
             "call": c_weeks.get(w, {}),
-            "team": t_weeks.get(w, {"rank": [], "callStats": [], "count": 0, "emailProductivity": []}),
+            "team": t_weeks.get(w, {"rank": [], "callStats": [], "count": 0, "emailProductivity": [], "dailyEmailTickets": {"days": [], "agents": []}}),
         }
 
     report = {

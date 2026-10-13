@@ -377,29 +377,24 @@ function s7(){
 /* ================= SLIDE 8 — Daily Email Support Productivity ================= */
 function s8(){
   var t = cur().team||{}, pt = prevWeek()?prevWeek().team:null;
-  var ep = t.emailProductivity || [];
-  var totalTickets = ep.reduce(function(a,b){return a+(b.tickets||0);},0);
-  var totalActual = ep.reduce(function(a,b){return a+(b.weeklyActual||0);},0);
-  var totalTarget = ep.reduce(function(a,b){return a+(b.weeklyTarget||0);},0);
-  var avgProd = ep.length ? (ep.reduce(function(a,b){return a+(b.productivityPct||0);},0)/ep.length) : null;
+  var dm = t.dailyEmailTickets || {days:[], agents:[]};
+  var days = dm.days || ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  var agents = dm.agents || [];
+  var totalTickets = agents.reduce(function(a,b){return a+(b.total||0);},0);
   var krow = '<div class="kpis">'+
     kpi('Total Tickets', num(totalTickets), 'handled this week','accent')+
-    kpi('Total Actual', num(totalActual), 'email responses')+
-    kpi('Total Target', num(totalTarget), 'set target')+
-    kpi('Avg Productivity', avgProd!=null?avgProd.toFixed(1)+'%':'—', ep.length+' agents')+'</div>';
-  var tr = '<tr><th>Rank</th><th>Agent</th><th>Tickets Handled</th><th>Actual</th><th>Target</th><th>Productivity</th><th>Work Days</th><th>Off Days</th></tr>';
-  var tb = ep.map(function(r,i){
-    return '<tr><td>'+(i+1)+'</td><td>'+esc(r.a)+'</td>'+
-      '<td>'+(r.tickets!=null?num(r.tickets):'—')+'</td>'+
-      '<td>'+(r.weeklyActual!=null?num(r.weeklyActual):'—')+'</td>'+
-      '<td>'+(r.weeklyTarget!=null?num(r.weeklyTarget):'—')+'</td>'+
-      '<td>'+(r.productivityPct!=null?r.productivityPct+'%':'—')+'</td>'+
-      '<td>'+(r.workDays!=null?num(r.workDays):'—')+'</td>'+
-      '<td>'+(r.offDays!=null?num(r.offDays):'—')+'</td></tr>';
-  }).join('') || '<tr><td colspan="8" class="small">No email support records for this week.</td></tr>';
-  var body = krow + '<div class="scrollbox"><table><thead>'+tr+'</thead><tbody>'+tb+'</tbody></table></div>'+
-    '<div class="small">Tickets = email tickets handled · Actual = email responses sent · Target = weekly quota.</div>';
-  return slide(8,'Daily Email Support Productivity','Agent email support metrics & ticket handling','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
+    kpi('Agents Active', num(agents.filter(function(a){return a.total>0;}).length), 'who handled tickets')+
+    kpi('Agents on Record', num(agents.length), 'total in team')+'</div>';
+  var th = '<tr><th>Agent</th>' + days.map(function(d){return '<th>'+d+'</th>';}).join('') + '<th>Total</th></tr>';
+  var tb = agents.map(function(r,i){
+    return '<tr><td>'+esc(r.a)+'</td>' + days.map(function(d){
+      var cell = r.tickets && r.tickets[d];
+      return '<td>'+(cell!=null?num(cell):'?')+'</td>';
+    }).join('') + '<td><b>'+(r.total!=null?num(r.total):'?')+'</b></td></tr>';
+  }).join('') || '<tr><td colspan="'+(days.length+2)+'" class="small">No email support records for this week.</td></tr>';
+  var body = krow + '<div class="scrollbox"><table><thead>'+th+'</thead><tbody>'+tb+'</tbody></table></div>'+
+    '<div class="small">Tickets handled per day by each agent. Total = weekly sum.</div>';
+  return slide(8,'Daily Email Support Productivity','Tickets handled per day by each agent','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
 }
 
 /* ================= SLIDE 9 — Scorecard Record ================= */
