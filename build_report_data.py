@@ -303,9 +303,9 @@ def agg_call(call):
 
 
 def agg_team(team):
-    d = decode_team(team, only=("scorecards", "weeklyCallStats"))
+    d = decode_team(team, only=("scorecards", "weeklyCallStats", "dailyEmailProductivity"))
     weeks = defaultdict(lambda: {
-        "rank": [], "callStats": [], "count": 0, "avgOverall": 0, "rankRaw": {}
+        "rank": [], "callStats": [], "count": 0, "avgOverall": 0, "rankRaw": {}, "emailProductivity": []
     })
     sc = d.get("scorecards", [])
     byweek = defaultdict(lambda: defaultdict(dict))
@@ -348,6 +348,38 @@ def agg_team(team):
         cs = {c["a"]: c for c in weeks[w]["callStats"]}
         for row in weeks[w]["rank"]:
             row["calls"] = cs.get(row["a"])
+    # aggregate daily email support productivity per agent per week
+    ep = d.get("dailyEmailProductivity", [])
+    byweek_ep = defaultdict(lambda: defaultdict(dict))
+    for r in ep:
+        byweek_ep[r["week"]][r["agent"]] = {
+            "tickets": r.get("tickets"),
+            "weeklyTarget": r.get("weeklyTarget"),
+            "weeklyActual": r.get("weeklyActual"),
+            "productivityPct": r.get("productivityPct"),
+            "finalScore": r.get("finalScore"),
+            "offDays": sum(1 for rr in ep if rr["week"] == r["week"] and rr["agent"] == r["agent"] and rr.get("off")),
+            "workDays": sum(1 for rr in ep if rr["week"] == r["week"] and rr["agent"] == r["agent"] and not rr.get("off")),
+        }
+    # collapse to per-week summary (team totals)
+    for w, agents in byweek_ep.items():
+        if w in weeks:
+            rows = []
+            for agent, m in agents.items():
+                actual = m["weeklyActual"] or 0
+                target = m["weeklyTarget"] or 0
+                rows.append({
+                    "a": agent,
+                    "tickets": m["tickets"] if m["tickets"] is not None else 0,
+                    "weeklyActual": actual,
+                    "weeklyTarget": target,
+                    "productivityPct": round((m["productivityPct"] or 0) * 100, 1),
+                    "finalScore": m["finalScore"],
+                    "workDays": m["workDays"],
+                    "offDays": m["offDays"],
+                })
+            rows.sort(key=lambda x: -x["productivityPct"])
+            weeks[w]["emailProductivity"] = rows
     return weeks
 
 
@@ -385,7 +417,7 @@ def main():
             "sales": s_weeks.get(w, {"total": 0, "orders": 0, "avg": 0,
                                      "byChannel": {}, "byBrand": [], "byAgent": []}),
             "call": c_weeks.get(w, {}),
-            "team": t_weeks.get(w, {"rank": [], "callStats": [], "count": 0}),
+            "team": t_weeks.get(w, {"rank": [], "callStats": [], "count": 0, "emailProductivity": []}),
         }
 
     report = {

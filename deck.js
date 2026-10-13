@@ -370,7 +370,22 @@ function s7(){
   }).join('') || '<tr><td colspan="7" class="small">No scorecard for this week.</td></tr>';
   var body = krow + chips + '<div class="scrollbox"><table><thead>'+tr+'</thead><tbody>'+tb+'</tbody></table></div>'+
     '<div class="small">Picked Up = calls answered · Not Picked = calls missed.</div>';
-  return slide(7,'Team Weekly Performance','Individual CSR scorecards & call productivity','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
+
+  // Daily Email Support Productivity section
+  var ep = t.emailProductivity || [];
+  var epRows = ep.map(function(r,i){
+    return '<tr><td>'+(i+1)+'</td><td>'+esc(r.a)+'</td>'+
+      '<td>'+(r.tickets!=null?num(r.tickets):'—')+'</td>'+
+      '<td>'+(r.weeklyActual!=null?num(r.weeklyActual):'—')+'</td>'+
+      '<td>'+(r.weeklyTarget!=null?num(r.weeklyTarget):'—')+'</td>'+
+      '<td>'+(r.productivityPct!=null?r.productivityPct+'%':'—')+'</td>'+
+      '<td>'+(r.workDays!=null?num(r.workDays):'—')+'</td>'+
+      '<td>'+(r.offDays!=null?num(r.offDays):'—')+'</td></tr>';
+  }).join('') || '<tr><td colspan="8" class="small">No email support records for this week.</td></tr>';
+  var epSection = '<h3 style="margin:14px 0 8px 0">📧 Daily Email Support Productivity</h3>'+
+    '<div class="scrollbox"><table><thead><tr><th>Rank</th><th>Agent</th><th>Tickets Handled</th><th>Actual</th><th>Target</th><th>Productivity</th><th>Work Days</th><th>Off Days</th></tr></thead><tbody>'+epRows+'</tbody></table></div>';
+  body = body + epSection;
+    return slide(7,'Team Weekly Performance','Individual CSR scorecards & call productivity','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
 }
 
 /* ================= SLIDE 8 — Scorecard Record ================= */
