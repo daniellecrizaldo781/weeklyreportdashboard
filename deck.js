@@ -371,9 +371,24 @@ function s7(){
   var body = krow + chips + '<div class="scrollbox"><table><thead>'+tr+'</thead><tbody>'+tb+'</tbody></table></div>'+
     '<div class="small">Picked Up = calls answered · Not Picked = calls missed.</div>';
 
-  // Daily Email Support Productivity section
+    return slide(7,'Team Weekly Performance','Individual CSR scorecards & call productivity','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
+}
+
+/* ================= SLIDE 8 — Daily Email Support Productivity ================= */
+function s8(){
+  var t = cur().team||{}, pt = prevWeek()?prevWeek().team:null;
   var ep = t.emailProductivity || [];
-  var epRows = ep.map(function(r,i){
+  var totalTickets = ep.reduce(function(a,b){return a+(b.tickets||0);},0);
+  var totalActual = ep.reduce(function(a,b){return a+(b.weeklyActual||0);},0);
+  var totalTarget = ep.reduce(function(a,b){return a+(b.weeklyTarget||0);},0);
+  var avgProd = ep.length ? (ep.reduce(function(a,b){return a+(b.productivityPct||0);},0)/ep.length) : null;
+  var krow = '<div class="kpis">'+
+    kpi('Total Tickets', num(totalTickets), 'handled this week','accent')+
+    kpi('Total Actual', num(totalActual), 'email responses')+
+    kpi('Total Target', num(totalTarget), 'set target')+
+    kpi('Avg Productivity', avgProd!=null?avgProd.toFixed(1)+'%':'—', ep.length+' agents')+'</div>';
+  var tr = '<tr><th>Rank</th><th>Agent</th><th>Tickets Handled</th><th>Actual</th><th>Target</th><th>Productivity</th><th>Work Days</th><th>Off Days</th></tr>';
+  var tb = ep.map(function(r,i){
     return '<tr><td>'+(i+1)+'</td><td>'+esc(r.a)+'</td>'+
       '<td>'+(r.tickets!=null?num(r.tickets):'—')+'</td>'+
       '<td>'+(r.weeklyActual!=null?num(r.weeklyActual):'—')+'</td>'+
@@ -382,14 +397,13 @@ function s7(){
       '<td>'+(r.workDays!=null?num(r.workDays):'—')+'</td>'+
       '<td>'+(r.offDays!=null?num(r.offDays):'—')+'</td></tr>';
   }).join('') || '<tr><td colspan="8" class="small">No email support records for this week.</td></tr>';
-  var epSection = '<h3 style="margin:14px 0 8px 0">📧 Daily Email Support Productivity</h3>'+
-    '<div class="scrollbox"><table><thead><tr><th>Rank</th><th>Agent</th><th>Tickets Handled</th><th>Actual</th><th>Target</th><th>Productivity</th><th>Work Days</th><th>Off Days</th></tr></thead><tbody>'+epRows+'</tbody></table></div>';
-  body = body + epSection;
-    return slide(7,'Team Weekly Performance','Individual CSR scorecards & call productivity','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
+  var body = krow + '<div class="scrollbox"><table><thead>'+tr+'</thead><tbody>'+tb+'</tbody></table></div>'+
+    '<div class="small">Tickets = email tickets handled · Actual = email responses sent · Target = weekly quota.</div>';
+  return slide(8,'Daily Email Support Productivity','Agent email support metrics & ticket handling','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
 }
 
-/* ================= SLIDE 8 — Scorecard Record ================= */
-function s8(){
+/* ================= SLIDE 9 — Scorecard Record ================= */
+function s9(){
   var t = cur().team||{};
   var rows = t.rank||[];
   var top = rows[0];
@@ -412,10 +426,10 @@ function s8(){
   return slide(8,'Scorecard Record','All CSR scores this week','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
 }
 
-var ALL_SLIDES = [s1,s2,s3,s4,s5,s6,s7,s8];
+var ALL_SLIDES = [s1,s2,s3,s4,s5,s6,s7,s8,s9];
 // Optional slide filter: set window.__REPORT_SLIDES to a 1-based array of slide
 // indices to render (e.g. [2,3,4,5,6] to skip slide 1 and the last 2). When unset,
-// all 8 slides render. This lets the Call EOD dashboard reuse this same deck.js
+// all 9 slides render. This lets the Call EOD dashboard reuse this same deck.js
 // while showing only the call slides, and stay in sync with layout changes here.
 var SLIDES = (window.__REPORT_SLIDES && window.__REPORT_SLIDES.length)
   ? window.__REPORT_SLIDES.map(function(i){ return ALL_SLIDES[i-1]; })
