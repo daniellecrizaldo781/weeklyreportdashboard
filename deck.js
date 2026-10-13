@@ -42,7 +42,7 @@ function kpi(lbl, val, sub, cls){
 }
 
 function value(v,fmt){ return fmt?fmt(v):num(v); }
-function ahtToSec(s){ if(!s) return null; var p=s.split(':'); return (+p[0])*3600+(+p[1])*60+(+p[2]||0); }
+function ahtToSec(s){ if(!s) return null; var p=s.split(':'); if(p.length===1){ var n=parseInt(s,10); return isNaN(n)?null:n; } return (+p[0])*3600+(+p[1]||0)*60+(+p[2]||0); }
 function secToAht(sec){ sec=Math.round(sec||0); var h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60; return (h?h+':':'')+(m<10&&h?'0':'')+m+':'+(s<10?'0':'')+s; }
 
 function bars(rows, color, valFmt, valClass){
@@ -348,7 +348,7 @@ function s7(){
   var top = rows[0];
   var cs = t.callStats||[], pcs = pt?pt.callStats:[];
   function avgPick(arr){ if(!arr.length) return null; return arr.reduce(function(a,b){return a+(b.pickupRate||0);},0)/arr.length; }
-  function avgAht(arr){ var secs=arr.map(function(b){return ahtToSec(b.aht);}).filter(function(x){return x!=null;}); if(!secs.length) return null; return secs.reduce(function(a,b){return a+b;},0)/secs.length; }
+  function avgAht(arr){ var secs=arr.map(function(b){return ahtToSec(b.aht);}).filter(function(x){return x!=null && !isNaN(x);}); if(!secs.length) return null; return secs.reduce(function(a,b){return a+b;},0)/secs.length; }
   var ap=avgPick(cs), apP=avgPick(pcs), aa=avgAht(cs), aaP=avgAht(pcs);
   var krow = '<div class="kpis">'+
     kpi('Team Avg Score', (t.avgOverall||0)+'%', 'week total / 100','accent')+
