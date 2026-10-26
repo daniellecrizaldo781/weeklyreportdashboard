@@ -456,8 +456,6 @@ function s7(){
   function avgAht(arr){ var secs=arr.map(function(b){return ahtToSec(b.aht);}).filter(function(x){return x!=null && !isNaN(x);}); if(!secs.length) return null; return secs.reduce(function(a,b){return a+b;},0)/secs.length; }
   var ap=avgPick(cs), apP=avgPick(pcs), aa=avgAht(cs), aaP=avgAht(pcs);
   var krow = '<div class="kpis">'+
-    kpi('Team Avg Score', (t.avgOverall||0)+'%', 'week total / 100','accent')+
-    kpi('Top Performer', top?'<span style="font-size:16px">'+esc(top.a)+'</span>':'—', top? (top.total+'% this week') : '')+
     kpi('Avg Pick Up', ap!=null? ap.toFixed(1)+'%':'—', apP!=null? delta(ap,apP,{fmt:function(d){return pctS(d);},invert:false}):'')+
     kpi('Avg AHT', aa!=null? secToAht(aa):'—', aaP!=null? delta(aa,aaP,{fmt:function(d){return (d>0?'+':'-')+Math.abs(d).toFixed(0)+'s';},invert:true}):'')+'</div>';
   var chips = '<div class="chiprow">'+
