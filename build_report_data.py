@@ -215,7 +215,7 @@ def agg_call(call):
                     data_out[day] = {h: hours[h] for h in sorted(hours.keys())}
                 branches_out[branch] = {
                     "days": sorted(days.keys()),
-                    "hours": sorted(all_hours),
+                    "hours": sorted(str(h) for h in all_hours),
                     "data": data_out
                 }
             ivr_hourly_out[ch] = {"branches": branches_out}
