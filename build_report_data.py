@@ -190,6 +190,37 @@ def agg_call(call):
                 iv["aht_sum"] += sec
 
         wk_dict = {}
+        # --- hourly IVR data per branch (for interactive lightbox) ---
+        # cube key: date\x01hour\x01channel\x01brand\x01branch\x01status -> [count, sec]
+        ivr_hourly = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {"answered": 0, "abandoned": 0}))))
+        for key, val in call.get("cube", {}).items():
+            parts = key.split("\x01")
+            if len(parts) < 6:
+                continue
+            date_s, hour_s, ch, _brand, branch, status = parts[:6]
+            if week_of(date_s) != wk or ch not in ("OHA", "NON-OHA"):
+                continue
+            cnt = val[0]
+            if status in ("answered", "abandoned"):
+                ivr_hourly[ch][branch][date_s][int(hour_s)][status] += cnt
+        ivr_hourly_out = {}
+        for ch, branches in ivr_hourly.items():
+            branches_out = {}
+            for branch, days in branches.items():
+                all_hours = set()
+                for day_data in days.values():
+                    all_hours.update(day_data.keys())
+                data_out = {}
+                for day, hours in days.items():
+                    data_out[day] = {h: hours[h] for h in sorted(hours.keys())}
+                branches_out[branch] = {
+                    "days": sorted(days.keys()),
+                    "hours": sorted(all_hours),
+                    "data": data_out
+                }
+            ivr_hourly_out[ch] = {"branches": branches_out}
+        wk_dict["ivrHourly"] = ivr_hourly_out
+
         combined = {"total": 0, "answered": 0, "abandoned": 0, "ooh": 0,
                     "aht_sum": 0.0, "agentReceived": 0}
         for ch in ("OHA", "NON-OHA"):
@@ -298,6 +329,29 @@ def agg_call(call):
                 weeks[w]["dnd"] = sorted(
                     [{"a": a, "hrs": round(m / 60.0, 1)} for a, m in agents.items()],
                     key=lambda x: -x["hrs"])
+
+    # --- per-day back-office & DND hours per agent (for interactive lightbox) ---
+    bo_daily = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
+    dnd_daily = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
+    for r in call.get("status", {}).get("rows", []):
+        w = week_of(r.get("d"))
+        if not w:
+            continue
+        if r.get("status") == BACK_OFFICE:
+            bo_daily[w][r.get("agent")][r.get("d")] += (r.get("min") or 0)
+        elif r.get("status") == "do_not_disturb":
+            dnd_daily[w][r.get("agent")][r.get("d")] += (r.get("min") or 0)
+    for w in weeks:
+        if w in bo_daily:
+            weeks[w]["backOfficeDaily"] = {
+                a: {"days": sorted(days.keys()), "hours": {d: round(m / 60.0, 2) for d, m in days.items()}}
+                for a, days in bo_daily[w].items()
+            }
+        if w in dnd_daily:
+            weeks[w]["dndDaily"] = {
+                a: {"days": sorted(days.keys()), "hours": {d: round(m / 60.0, 2) for d, m in days.items()}}
+                for a, days in dnd_daily[w].items()
+            }
 
     return weeks
 

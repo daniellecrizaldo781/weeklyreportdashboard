@@ -45,14 +45,15 @@ function value(v,fmt){ return fmt?fmt(v):num(v); }
 function ahtToSec(s){ if(!s) return null; var p=s.split(':'); if(p.length===1){ var n=parseInt(s,10); return isNaN(n)?null:n; } return (+p[0])*3600+(+p[1]||0)*60+(+p[2]||0); }
 function secToAht(sec){ sec=Math.round(sec||0); var h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60; return (h?h+':':'')+(m<10&&h?'0':'')+m+':'+(s<10?'0':'')+s; }
 
-function bars(rows, color, valFmt, valClass){
+function bars(rows, color, valFmt, valClass, clickable){
   if(!rows || !rows.length) return '<div class="small" style="padding:10px">No data for this week.</div>';
   var max = Math.max.apply(null, rows.map(function(r){ return r.v||0; }));
   var out = '<div class="bars">';
   rows.forEach(function(r){
     var w = max>0 ? Math.max(4, (r.v/max)*100) : 0;
     var vs = r.vs||'';
-    out += '<div class="bar-row"><div class="bar-lbl" title="'+esc(r.l)+'">'+esc(r.l)+'</div>'+
+    var lblCls = clickable ? ' class="bar-lbl lb-clickable" data-agent="'+esc(r.l)+'"' : ' class="bar-lbl"';
+    out += '<div class="bar-row"><div'+lblCls+' title="'+esc(r.l)+'">'+esc(r.l)+'</div>'+
       '<div class="bar-track"><div class="bar-fill" style="width:'+w+'%;background:'+color+'"></div></div>'+
       '<div class="bar-val'+(valClass?' '+valClass:'')+'">'+value(r.v,valFmt)+' <span class="small">'+vs+'</span></div></div>';
   });
@@ -100,14 +101,15 @@ function comboChart(rows, color, valFmt){
     '<div class="combo-plot">'+tracks+'<svg class="combo-line" viewBox="0 0 100 100" preserveAspectRatio="none">'+line+dots+'</svg></div>'+
     '<div class="combo-row">'+weeks+'</div>'+
     '</div>';
-}function stackedBars(rows, colorA, colorB){
+}function stackedBars(rows, colorA, colorB, channel){
   if(!rows || !rows.length) return '<div class="small" style="padding:10px">No data.</div>';
   var max = Math.max.apply(null, rows.map(function(r){ return (r.a||0)+(r.b||0); }));
   var out = '<div class="bars">';
   rows.forEach(function(r){
     var tot=(r.a||0)+(r.b||0);
     var wa=max>0?(r.a||0)/max*100:0, wb=max>0?(r.b||0)/max*100:0;
-    out += '<div class="bar-row"><div class="bar-lbl" title="'+esc(r.l)+'">'+esc(r.l)+'</div>'+
+    var lblCls = channel ? ' class="bar-lbl lb-clickable" data-ivr="'+esc(r.l)+'" data-channel="'+esc(channel)+'"' : ' class="bar-lbl"';
+    out += '<div class="bar-row"><div'+lblCls+' title="'+esc(r.l)+'">'+esc(r.l)+'</div>'+
       '<div class="bar-track" style="display:flex">'+
         '<div class="bar-fill" style="width:'+wa+'%;background:'+colorA+';border-radius:8px 0 0 8px">'+(r.a>0?'<span class="seg-count">'+num(r.a)+'</span>':'')+'</div>'+
         '<div class="bar-fill" style="width:'+wb+'%;background:'+colorB+';border-radius:0 8px 8px 0">'+(r.b>0?'<span class="seg-count">'+num(r.b)+'</span>':'')+'</div>'+
@@ -185,6 +187,87 @@ function slide(num, title, sub, bodyHtml, note){
     '<div class="nvg"><span class="dots" id="dots"></span></div></div></section>';
 }
 
+/* ---------- interactive lightbox ---------- */
+function openLightbox(title, sub, html){
+  var ov = document.getElementById('lbOverlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'lbOverlay';
+    ov.className = 'lb-overlay';
+    ov.innerHTML = '<div class="lb-box"><div class="lb-head"><div><h2></h2><div class="lb-sub"></div></div><button class="lb-close" title="Close">&#10005;</button></div><div class="lb-body"></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', function(e){ if(e.target===ov) closeLightbox(); });
+    ov.querySelector('.lb-close').addEventListener('click', closeLightbox);
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeLightbox(); });
+  }
+  ov.querySelector('.lb-head h2').textContent = title;
+  ov.querySelector('.lb-sub').textContent = sub || '';
+  ov.querySelector('.lb-body').innerHTML = html;
+  ov.classList.add('open');
+}
+function closeLightbox(){
+  var ov = document.getElementById('lbOverlay');
+  if(ov) ov.classList.remove('open');
+}
+window.__openLightbox = openLightbox;
+window.__closeLightbox = closeLightbox;
+
+
+/* ---------- lightbox content builders ---------- */
+function fmtDayShort(iso){
+  var d = new Date(iso + 'T00:00:00');
+  var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  return days[d.getDay()] + ' ' + (d.getMonth()+1) + '/' + d.getDate();
+}
+function agentDailyLightbox(agent){
+  var c = cur().call || {};
+  var boD = (c.backOfficeDaily||{})[agent] || {days:[], hours:{}};
+  var dndD = (c.dndDaily||{})[agent] || {days:[], hours:{}};
+  var allDays = {};
+  boD.days.concat(dndD.days).forEach(function(d){ allDays[d]=1; });
+  var days = Object.keys(allDays).sort();
+  if(!days.length) return '<div class="lb-empty">No daily back-office or DND records for '+esc(agent)+' this week.</div>';
+  var th = '<tr><th>Day</th><th>Back-Office (h)</th><th>DND (h)</th></tr>';
+  var tb = days.map(function(d){
+    var bo = boD.hours[d]||0, dn = dndD.hours[d]||0;
+    return '<tr><td>'+fmtDayShort(d)+'</td><td>'+(bo?bo.toFixed(2):'—')+'</td><td>'+(dn?dn.toFixed(2):'—')+'</td></tr>';
+  }).join('');
+  var boTot = days.reduce(function(a,d){return a+(boD.hours[d]||0);},0);
+  var dnTot = days.reduce(function(a,d){return a+(dndD.hours[d]||0);},0);
+  tb += '<tr class="lb-total"><td>Total</td><td>'+boTot.toFixed(2)+' h</td><td>'+dnTot.toFixed(2)+' h</td></tr>';
+  return '<div class="lb-sec-title"><span class="sw" style="background:#B99BDD"></span>Back-Office Hours</div>'+
+    '<table><thead>'+th+'</thead><tbody>'+tb+'</tbody></table>'+
+    '<div class="lb-sec-title"><span class="sw" style="background:#4E9BE5"></span>DND Hours</div>'+
+    '<table><thead><tr><th>Day</th><th>DND (h)</th></tr></thead><tbody>'+
+    days.map(function(d){ var dn=dndD.hours[d]||0; return '<tr><td>'+fmtDayShort(d)+'</td><td>'+(dn?dn.toFixed(2):'—')+'</td></tr>'; }).join('')+
+    '<tr class="lb-total"><td>Total</td><td>'+dnTot.toFixed(2)+' h</td></tr></tbody></table>';
+}
+function ivrBranchLightbox(ch, branch){
+  var ih = (cur().call.ivrHourly||{})[ch] || {branches:{}};
+  var b = (ih.branches||{})[branch];
+  if(!b || !b.days.length) return '<div class="lb-empty">No hourly IVR data for '+esc(branch)+' this week.</div>';
+  var days = b.days, hours = b.hours;
+  var th = '<tr><th>Hour</th>'+days.map(function(d){ return '<th>'+fmtDayShort(d)+'</th>'; }).join('')+'<th>Total</th></tr>';
+  var tb = hours.map(function(h){
+    var cells = days.map(function(d){
+      var cell = (b.data[d]||{})[h] || {answered:0,abandoned:0};
+      var tot = (cell.answered||0)+(cell.abandoned||0);
+      return '<td title="Answered: '+(cell.answered||0)+' · Abandoned: '+(cell.abandoned||0)+'">'+(tot||'—')+'</td>';
+    });
+    var rowTot = days.reduce(function(a,d){ var c=(b.data[d]||{})[h]||{}; return a+(c.answered||0)+(c.abandoned||0); },0);
+    return '<tr><td>'+h+':00</td>'+cells.join('')+'<td class="lb-total">'+(rowTot||'—')+'</td></tr>';
+  }).join('');
+  var dayTot = days.map(function(d){
+    var t = hours.reduce(function(a,h){ var c=(b.data[d]||{})[h]||{}; return a+(c.answered||0)+(c.abandoned||0); },0);
+    return '<td class="lb-total">'+(t||'—')+'</td>';
+  }).join('');
+  var grand = days.reduce(function(a,d){ return a + hours.reduce(function(a2,h){ var c=(b.data[d]||{})[h]||{}; return a2+(c.answered||0)+(c.abandoned||0); },0); },0);
+  tb += '<tr class="lb-total"><td>Total</td>'+dayTot+'<td>'+grand+'</td></tr>';
+  return '<div class="small" style="margin-bottom:10px">Calls received per hour (answered + abandoned). Hover a cell for the answered/abandoned split.</div>'+
+    '<table><thead>'+th+'</thead><tbody>'+tb+'</tbody></table>';
+}
+
+
 /* ================= SLIDE 1 — Weekly Sales & Business Overview ================= */
 function s1(){
   var c = cur(), p = prevWeek(), s = c.sales;
@@ -242,10 +325,10 @@ function s2(){
     var top = (cv.ivr||[]).slice(0,5);
     var stacked = top.map(function(x){ return {l:x.branch, a:x.answered, b:x.abandoned}; });
     var share = top.map(function(x){ return {l:x.branch, v:x.total}; });
-    return '<div class="col"><h3>'+esc(ch)+' IVR — Top 5</h3>'+
+    return '<div class="col"><h3>'+esc(ch)+' IVR — Top 5 <span class="small">(click a branch for hourly detail)</span></h3>'+
       '<div class="small" style="flex:none">Answered vs Abandoned by IVR Branch</div>'+
       '<div class="legend-inline"><span class="li"><span class="sw" style="background:#E8578E"></span>Answered</span><span class="li"><span class="sw" style="background:#B99BDD"></span>Abandoned</span></div>'+
-      stackedBars(stacked,'#E8578E','#B99BDD')+
+      stackedBars(stacked,'#E8578E','#B99BDD',ch)+
       '<div class="small" style="flex:none">Branch Share</div>'+donut(share,['#E8578E','#B99BDD','#4E9BE5','#7FCBA6','#F0A579'])+'</div>';
   }
   return slide(2,'IVR Branch Performance','Top 5 IVR branches — answered vs abandoned & share',
@@ -332,12 +415,12 @@ function s6(){
     kpi('Avg per Agent', bo.length? (Math.round(total/bo.length*10)/10)+' h':'0 h', 'active this week')+
     kpi('DND Agents', num(dnd.length), 'this week','blue')+
     kpi('Total DND Hours', num(Math.round(dndTotal*10)/10)+' h', 'all agents','blue')+'</div>';
-  var body = krow + '<div class="col" style="flex:1"><h3>🕐 Back-Office Hours by Agent</h3>'+
+  var body = krow + '<div class="col" style="flex:1"><h3>🕐 Back-Office Hours by Agent <span class="small">(click a name for daily detail)</span></h3>'+
     (rows.length?'':'<div class="small" style="padding:12px">No back-office activity recorded this week.</div>')+
-    bars(rows,'#B99BDD',function(v){return v+' h';})+
-    '<h3 style="margin-top:14px">🚫 DND (Do Not Disturb) Hours by Agent</h3>'+
+    bars(rows,'#B99BDD',function(v){return v+' h';},null,true)+
+    '<h3 style="margin-top:14px">🚫 DND (Do Not Disturb) Hours by Agent <span class="small">(click a name for daily detail)</span></h3>'+
     (dndRows.length?'':'<div class="small" style="padding:12px">No DND activity recorded this week.</div>')+
-    bars(dndRows,'#4E9BE5',function(v){return v+' h';})+'</div>';
+    bars(dndRows,'#4E9BE5',function(v){return v+' h';},null,true)+'</div>';
   return slide(6,'Back Office Hours','Individual agent back-office & DND time','<div style="display:flex;flex-direction:column;gap:16px;min-height:0;flex:1">'+body+'</div>');
 }
 
@@ -476,6 +559,18 @@ window.addEventListener('DOMContentLoaded', function(){
     else if(e.key==='End'){ goTo(SLIDES.length-1); }
   });
   document.getElementById('deck').addEventListener('click', function(e){
+    // interactive lightbox clicks (agent names on slide 6, IVR branches on slide 2)
+    var agentEl = e.target.closest('[data-agent]');
+    if(agentEl){
+      openLightbox(agentEl.getAttribute('data-agent'), 'Daily back-office & DND hours — '+esc(weeks[sel].label), agentDailyLightbox(agentEl.getAttribute('data-agent')));
+      return;
+    }
+    var ivrEl = e.target.closest('[data-ivr]');
+    if(ivrEl){
+      var ch = ivrEl.getAttribute('data-channel'), br = ivrEl.getAttribute('data-ivr');
+      openLightbox(br, ch+' IVR — hourly calls received — '+esc(weeks[sel].label), ivrBranchLightbox(ch, br));
+      return;
+    }
     if(e.target.closest('.dot') || e.target.closest('.foot') || e.target.closest('table') || e.target.closest('.scrollbox')) return;
     var r = document.getElementById('deck').getBoundingClientRect();
     if(e.clientX > r.left + r.width*0.55){ next(); } else { prev(); }
