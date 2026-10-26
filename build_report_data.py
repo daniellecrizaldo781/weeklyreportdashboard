@@ -221,6 +221,19 @@ def agg_call(call):
             ivr_hourly_out[ch] = {"branches": branches_out}
         wk_dict["ivrHourly"] = ivr_hourly_out
 
+        # --- seated agents per day/hour (from status rows: available/in_call/ringing/after_call_work) ---
+        SEATED = {"available", "in_call", "ringing", "after_call_work"}
+        seated = defaultdict(lambda: defaultdict(set))  # date -> hour -> set(agents)
+        for r in call.get("status", {}).get("rows", []):
+            if week_of(r.get("d")) != wk:
+                continue
+            if r.get("status") in SEATED and (r.get("min") or 0) > 0:
+                seated[r.get("d")][r.get("t")].add(r.get("agent"))
+        wk_dict["seated"] = {
+            d: {str(h): sorted(agents) for h, agents in hours.items()}
+            for d, hours in sorted(seated.items())
+        }
+
         combined = {"total": 0, "answered": 0, "abandoned": 0, "ooh": 0,
                     "aht_sum": 0.0, "agentReceived": 0}
         for ch in ("OHA", "NON-OHA"):
@@ -333,14 +346,18 @@ def agg_call(call):
     # --- per-day back-office & DND hours per agent (for interactive lightbox) ---
     bo_daily = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
     dnd_daily = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
+    bo_events = defaultdict(lambda: defaultdict(list))   # week -> agent -> [{date,hour,min}]
+    dnd_events = defaultdict(lambda: defaultdict(list))
     for r in call.get("status", {}).get("rows", []):
         w = week_of(r.get("d"))
         if not w:
             continue
         if r.get("status") == BACK_OFFICE:
             bo_daily[w][r.get("agent")][r.get("d")] += (r.get("min") or 0)
+            bo_events[w][r.get("agent")].append({"date": r.get("d"), "hour": r.get("t"), "min": round(r.get("min") or 0, 2)})
         elif r.get("status") == "do_not_disturb":
             dnd_daily[w][r.get("agent")][r.get("d")] += (r.get("min") or 0)
+            dnd_events[w][r.get("agent")].append({"date": r.get("d"), "hour": r.get("t"), "min": round(r.get("min") or 0, 2)})
     for w in weeks:
         if w in bo_daily:
             weeks[w]["backOfficeDaily"] = {
@@ -351,6 +368,16 @@ def agg_call(call):
             weeks[w]["dndDaily"] = {
                 a: {"days": sorted(days.keys()), "hours": {d: round(m / 60.0, 2) for d, m in days.items()}}
                 for a, days in dnd_daily[w].items()
+            }
+        if w in bo_events:
+            weeks[w]["backOfficeEvents"] = {
+                a: sorted(ev, key=lambda x: (x["date"], x["hour"]))
+                for a, ev in bo_events[w].items()
+            }
+        if w in dnd_events:
+            weeks[w]["dndEvents"] = {
+                a: sorted(ev, key=lambda x: (x["date"], x["hour"]))
+                for a, ev in dnd_events[w].items()
             }
 
     return weeks

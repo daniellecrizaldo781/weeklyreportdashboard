@@ -219,43 +219,63 @@ function fmtDayShort(iso){
   var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   return days[d.getDay()] + ' ' + (d.getMonth()+1) + '/' + d.getDate();
 }
+function fmtDateLong(iso){
+  var d = new Date(iso + 'T00:00:00');
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+}
+function fmtHour(h){
+  // 12-hour format (not 24h)
+  var hh = h % 12; if(hh===0) hh=12;
+  var ampm = h < 12 ? 'AM' : 'PM';
+  return hh + ':00 ' + ampm;
+}
+function fmtMin(min){
+  // format minutes as H:MM:SS
+  var total = Math.round(min*60); // seconds
+  var h = Math.floor(total/3600), m = Math.floor((total%3600)/60), s = total%60;
+  return h + ':' + (m<10?'0':'') + m + ':' + (s<10?'0':'') + s;
+}
+function eventTable(events, color){
+  if(!events || !events.length) return '<div class="lb-empty">No records.</div>';
+  var totalMin = events.reduce(function(a,e){return a+e.min;},0);
+  var th = '<tr><th>DATE</th><th>HOUR</th><th>DURATION</th></tr>';
+  var tb = events.map(function(e){
+    return '<tr><td>'+fmtDateLong(e.date)+'</td><td>'+fmtHour(e.hour)+'</td><td>'+fmtMin(e.min)+'</td></tr>';
+  }).join('');
+  tb += '<tr class="lb-total"><td colspan="2">Total</td><td>'+fmtMin(totalMin)+' ('+totalMin.toFixed(2)+' min)</td></tr>';
+  return '<table><thead>'+th+'</thead><tbody>'+tb+'</tbody></table>';
+}
 function agentDailyLightbox(agent){
   var c = cur().call || {};
-  var boD = (c.backOfficeDaily||{})[agent] || {days:[], hours:{}};
-  var dndD = (c.dndDaily||{})[agent] || {days:[], hours:{}};
-  var allDays = {};
-  boD.days.concat(dndD.days).forEach(function(d){ allDays[d]=1; });
-  var days = Object.keys(allDays).sort();
-  if(!days.length) return '<div class="lb-empty">No daily back-office or DND records for '+esc(agent)+' this week.</div>';
-  var th = '<tr><th>Day</th><th>Back-Office (h)</th><th>DND (h)</th></tr>';
-  var tb = days.map(function(d){
-    var bo = boD.hours[d]||0, dn = dndD.hours[d]||0;
-    return '<tr><td>'+fmtDayShort(d)+'</td><td>'+(bo?bo.toFixed(2):'—')+'</td><td>'+(dn?dn.toFixed(2):'—')+'</td></tr>';
-  }).join('');
-  var boTot = days.reduce(function(a,d){return a+(boD.hours[d]||0);},0);
-  var dnTot = days.reduce(function(a,d){return a+(dndD.hours[d]||0);},0);
-  tb += '<tr class="lb-total"><td>Total</td><td>'+boTot.toFixed(2)+' h</td><td>'+dnTot.toFixed(2)+' h</td></tr>';
-  return '<div class="lb-sec-title"><span class="sw" style="background:#B99BDD"></span>Back-Office Hours</div>'+
-    '<table><thead>'+th+'</thead><tbody>'+tb+'</tbody></table>'+
-    '<div class="lb-sec-title"><span class="sw" style="background:#4E9BE5"></span>DND Hours</div>'+
-    '<table><thead><tr><th>Day</th><th>DND (h)</th></tr></thead><tbody>'+
-    days.map(function(d){ var dn=dndD.hours[d]||0; return '<tr><td>'+fmtDayShort(d)+'</td><td>'+(dn?dn.toFixed(2):'—')+'</td></tr>'; }).join('')+
-    '<tr class="lb-total"><td>Total</td><td>'+dnTot.toFixed(2)+' h</td></tr></tbody></table>';
+  var boE = (c.backOfficeEvents||{})[agent] || [];
+  var dndE = (c.dndEvents||{})[agent] || [];
+  if(!boE.length && !dndE.length) return '<div class="lb-empty">No back-office or DND records for '+esc(agent)+' this week.</div>';
+  var boTot = boE.reduce(function(a,e){return a+e.min;},0);
+  var dnTot = dndE.reduce(function(a,e){return a+e.min;},0);
+  var out = '<div class="lb-sec-title"><span class="sw" style="background:#B99BDD"></span>Back-Office — '+boE.length+' events · total '+fmtMin(boTot)+'</div>'+
+    eventTable(boE, '#B99BDD')+
+    '<div class="lb-sec-title"><span class="sw" style="background:#4E9BE5"></span>DND — '+dndE.length+' events · total '+fmtMin(dnTot)+'</div>'+
+    eventTable(dndE, '#4E9BE5');
+  return out;
 }
 function ivrBranchLightbox(ch, branch){
   var ih = (cur().call.ivrHourly||{})[ch] || {branches:{}};
   var b = (ih.branches||{})[branch];
   if(!b || !b.days.length) return '<div class="lb-empty">No hourly IVR data for '+esc(branch)+' this week.</div>';
   var days = b.days, hours = b.hours;
+  var seated = (cur().call.seated) || {};
   var th = '<tr><th>Hour</th>'+days.map(function(d){ return '<th>'+fmtDayShort(d)+'</th>'; }).join('')+'<th>Total</th></tr>';
   var tb = hours.map(function(h){
     var cells = days.map(function(d){
       var cell = (b.data[d]||{})[h] || {answered:0,abandoned:0};
       var tot = (cell.answered||0)+(cell.abandoned||0);
-      return '<td title="Answered: '+(cell.answered||0)+' · Abandoned: '+(cell.abandoned||0)+'">'+(tot||'—')+'</td>';
+      var seat = (seated[d]||{})[h] || [];
+      var seatTxt = seat.length ? '<div class="lb-seat">'+esc(seat.join(', '))+'</div>' : '';
+      return '<td title="Answered: '+(cell.answered||0)+' · Abandoned: '+(cell.abandoned||0)+'">'+(tot||'—')+seatTxt+'</td>';
     });
     var rowTot = days.reduce(function(a,d){ var c=(b.data[d]||{})[h]||{}; return a+(c.answered||0)+(c.abandoned||0); },0);
-    return '<tr><td>'+h+':00</td>'+cells.join('')+'<td class="lb-total">'+(rowTot||'—')+'</td></tr>';
+    return '<tr><td>'+fmtHour(parseInt(h,10))+'</td>'+cells.join('')+'<td class="lb-total">'+(rowTot||'—')+'</td></tr>';
   }).join('');
   var dayTot = days.map(function(d){
     var t = hours.reduce(function(a,h){ var c=(b.data[d]||{})[h]||{}; return a+(c.answered||0)+(c.abandoned||0); },0);
@@ -263,7 +283,7 @@ function ivrBranchLightbox(ch, branch){
   }).join('');
   var grand = days.reduce(function(a,d){ return a + hours.reduce(function(a2,h){ var c=(b.data[d]||{})[h]||{}; return a2+(c.answered||0)+(c.abandoned||0); },0); },0);
   tb += '<tr class="lb-total"><td>Total</td>'+dayTot+'<td>'+grand+'</td></tr>';
-  return '<div class="small" style="margin-bottom:10px">Calls received per hour (answered + abandoned). Hover a cell for the answered/abandoned split.</div>'+
+  return '<div class="small" style="margin-bottom:10px">Calls received per hour (answered + abandoned). Seated agents shown under each hour. Hover a cell for the answered/abandoned split.</div>'+
     '<table><thead>'+th+'</thead><tbody>'+tb+'</tbody></table>';
 }
 
