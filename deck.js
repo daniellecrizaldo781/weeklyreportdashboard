@@ -273,8 +273,8 @@ function ivrBranchLightbox(ch, branch){
       var cell = (b.data[d]||{})[h] || {answered:0,abandoned:0};
       var tot = (cell.answered||0)+(cell.abandoned||0);
       var seat = (seated[d]||{})[h] || [];
-      var seatTxt = seat.length ? '<div class="lb-seat">'+esc(seat.join(', '))+'</div>' : '';
-      return '<td title="Answered: '+(cell.answered||0)+' · Abandoned: '+(cell.abandoned||0)+'">'+(tot||'—')+seatTxt+'</td>';
+      var seatTxt = seat.length ? '<div class="lb-seat">'+seat.length+' seated</div>' : '';
+      return '<td title="Answered: '+(cell.answered||0)+' · Abandoned: '+(cell.abandoned||0)+' · '+seat.length+' agents seated">'+(tot||'—')+seatTxt+'</td>';
     });
     var rowTot = days.reduce(function(a,d){ var c=(b.data[d]||{})[h]||{}; return a+(c.answered||0)+(c.abandoned||0); },0);
     return '<tr><td>'+fmtHour(parseInt(h,10))+'</td>'+cells.join('')+'<td class="lb-total">'+(rowTot||'—')+'</td></tr>';
@@ -285,7 +285,7 @@ function ivrBranchLightbox(ch, branch){
   }).join('');
   var grand = days.reduce(function(a,d){ return a + hours.reduce(function(a2,h){ var c=(b.data[d]||{})[h]||{}; return a2+(c.answered||0)+(c.abandoned||0); },0); },0);
   tb += '<tr class="lb-total"><td>Total</td>'+dayTot+'<td>'+grand+'</td></tr>';
-  return '<div class="small" style="margin-bottom:10px">Calls received per hour (answered + abandoned). Seated agents shown under each hour. Hover a cell for the answered/abandoned split.</div>'+
+  return '<div class="small" style="margin-bottom:10px">Calls received per hour (answered + abandoned). Seated agent count shown under each hour. Hover a cell for the full detail.</div>'+
     '<table><thead>'+th+'</thead><tbody>'+tb+'</tbody></table>';
 }
 
