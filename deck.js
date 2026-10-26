@@ -6,12 +6,14 @@ var weeks = R.weeks, order = R.weekOrder || [];
 // pick the latest week that has *meaningful* call volume (not a stub with
 // 1–2 out-of-hours calls and 0 answered), so slides don't show "No data".
 var sel = (function(){
-  // 1) latest week with meaningful call volume AND team/scorecard data,
-  //    so slides 7/8 (Team + Scorecard) always render something.
+  // 1) latest week with meaningful call volume AND team data (scorecards OR
+  //    email/call productivity), so slides 7/8/9 render the current week too.
+  for(var i=order.length-1;i>=0;i--){ var w=weeks[order[i]]; if(w && w.call && w.call.combined && (w.call.combined.answered>0 || w.call.combined.total>=5) && w.team && ((w.team.rank && w.team.rank.length>0) || (w.team.emailProductivity && w.team.emailProductivity.length>0) || (w.team.callStats && w.team.callStats.length>0))) return order[i]; }
+  // 2) latest week with meaningful call volume AND team/scorecard data.
   for(var i=order.length-1;i>=0;i--){ var w=weeks[order[i]]; if(w && w.call && w.call.combined && (w.call.combined.answered>0 || w.call.combined.total>=5) && w.team && w.team.rank && w.team.rank.length>0) return order[i]; }
-  // 2) fallback: latest week with meaningful call volume.
+  // 3) fallback: latest week with meaningful call volume.
   for(var i=order.length-1;i>=0;i--){ var w=weeks[order[i]]; if(w && w.call && w.call.combined && (w.call.combined.answered>0 || w.call.combined.total>=5)) return order[i]; }
-  // 3) fallback: latest week with any call data.
+  // 4) fallback: latest week with any call data.
   for(var i=order.length-1;i>=0;i--){ var w=weeks[order[i]]; if(w && w.call && w.call.combined && w.call.combined.total>0) return order[i]; }
   return order.length?order[order.length-1]:null;
 })();
@@ -462,7 +464,9 @@ function s7(){
     '<span class="pill pink">Prev Week Pick Up: '+(apP!=null? apP.toFixed(1)+'%':'—')+'</span>'+
     '<span class="pill blue">Prev Week Avg AHT: '+(aaP!=null? secToAht(aaP):'—')+'</span></div>';
   var tr = '<tr><th>Rank</th><th>Agent</th><th>Ringing Attempts</th><th>Picked Up</th><th>Not Picked</th><th>Pick Up %</th><th>AHT</th></tr>';
-  var tb = rows.map(function(r,i){
+  // If scorecards not yet published (current week), fall back to callStats table entries.
+  var rowsForTable = rows.length ? rows : cs.map(function(c){ return {a:c.a, calls:c}; });
+  var tb = rowsForTable.map(function(r,i){
     var cs2=r.calls||{};
     return '<tr><td>'+(i+1)+'</td><td>'+esc(r.a)+'</td>'+
       '<td>'+(cs2.attempts!=null?num(cs2.attempts):'—')+'</td>'+

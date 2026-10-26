@@ -417,7 +417,7 @@ def agg_team(team):
     wc = d.get("weeklyCallStats", [])
     for r in wc:
         w = r.get("week")
-        if w in weeks:
+        if w is not None:
             weeks[w]["callStats"].append({
                 "a": r.get("agent"), "attempts": r.get("attempts"),
                 "pickedUp": r.get("pickedUp"), "notPickedUp": r.get("notPickedUp"),
@@ -444,7 +444,7 @@ def agg_team(team):
         }
     # collapse to per-week summary (team totals)
     for w, agents in byweek_ep.items():
-        if w in weeks:
+        if w is not None:
             rows = []
             for agent, m in agents.items():
                 actual = m["weeklyActual"] or 0
