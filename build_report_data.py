@@ -192,7 +192,7 @@ def agg_call(call):
         wk_dict = {}
         # --- hourly IVR data per branch (for interactive lightbox) ---
         # cube key: date\x01hour\x01channel\x01brand\x01branch\x01status -> [count, sec]
-        ivr_hourly = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {"answered": 0, "abandoned": 0}))))
+        ivr_hourly = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {"answered": 0, "abandoned": 0, "missed": 0}))))
         for key, val in call.get("cube", {}).items():
             parts = key.split("\x01")
             if len(parts) < 6:
@@ -201,7 +201,7 @@ def agg_call(call):
             if week_of(date_s) != wk or ch not in ("OHA", "NON-OHA"):
                 continue
             cnt = val[0]
-            if status in ("answered", "abandoned"):
+            if status in ("answered", "abandoned", "missed"):
                 ivr_hourly[ch][branch][date_s][int(hour_s)][status] += cnt
         ivr_hourly_out = {}
         for ch, branches in ivr_hourly.items():

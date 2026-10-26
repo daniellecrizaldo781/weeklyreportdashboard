@@ -270,22 +270,21 @@ function ivrBranchLightbox(ch, branch){
   var th = '<tr><th>Hour</th>'+days.map(function(d){ return '<th>'+fmtDayShort(d)+'</th>'; }).join('')+'<th>Total</th></tr>';
   var tb = hours.map(function(h){
     var cells = days.map(function(d){
-      var cell = (b.data[d]||{})[h] || {answered:0,abandoned:0};
-      var tot = (cell.answered||0)+(cell.abandoned||0);
-      var seat = (seated[d]||{})[h] || [];
-      var seatTxt = seat.length ? '<div class="lb-seat">'+seat.length+' seated</div>' : '';
-      return '<td title="Answered: '+(cell.answered||0)+' · Abandoned: '+(cell.abandoned||0)+' · '+seat.length+' agents seated">'+(tot||'—')+seatTxt+'</td>';
+      var cell = (b.data[d]||{})[h] || {answered:0,abandoned:0,missed:0};
+      var a = cell.answered||0, m = cell.missed||0, ab = cell.abandoned||0;
+      var abTxt = ab>0 ? ' <span class="lb-ab">ab '+ab+'</span>' : '';
+      return '<td title="Answered: '+a+' · Missed: '+m+(ab>0?' · Abandoned: '+ab:'')+'"><b>'+a+'</b> ans / '+m+' msd'+abTxt+'</td>';
     });
-    var rowTot = days.reduce(function(a,d){ var c=(b.data[d]||{})[h]||{}; return a+(c.answered||0)+(c.abandoned||0); },0);
+    var rowTot = days.reduce(function(x,d){ var c=(b.data[d]||{})[h]||{}; return x+(c.answered||0)+(c.missed||0)+(c.abandoned||0); },0);
     return '<tr><td>'+fmtHour(parseInt(h,10))+'</td>'+cells.join('')+'<td class="lb-total">'+(rowTot||'—')+'</td></tr>';
   }).join('');
   var dayTot = days.map(function(d){
-    var t = hours.reduce(function(a,h){ var c=(b.data[d]||{})[h]||{}; return a+(c.answered||0)+(c.abandoned||0); },0);
+    var t = hours.reduce(function(x,h){ var c=(b.data[d]||{})[h]||{}; return x+(c.answered||0)+(c.missed||0)+(c.abandoned||0); },0);
     return '<td class="lb-total">'+(t||'—')+'</td>';
   }).join('');
-  var grand = days.reduce(function(a,d){ return a + hours.reduce(function(a2,h){ var c=(b.data[d]||{})[h]||{}; return a2+(c.answered||0)+(c.abandoned||0); },0); },0);
+  var grand = days.reduce(function(x,d){ return x + hours.reduce(function(x2,h){ var c=(b.data[d]||{})[h]||{}; return x2+(c.answered||0)+(c.missed||0)+(c.abandoned||0); },0); },0);
   tb += '<tr class="lb-total"><td>Total</td>'+dayTot+'<td>'+grand+'</td></tr>';
-  return '<div class="small" style="margin-bottom:10px">Calls received per hour (answered + abandoned). Seated agent count shown under each hour. Hover a cell for the full detail.</div>'+
+  return '<div class="small" style="margin-bottom:10px">Calls per hour — answered vs missed (ab = abandoned). Hover a cell for full detail.</div>'+
     '<table><thead>'+th+'</thead><tbody>'+tb+'</tbody></table>';
 }
 

@@ -256,3 +256,4 @@ tr td:first-child{font-weight:700;}
 .lb-clickable:hover{color:var(--pink);}
 
 .lb-seat{font-size:10px; color:var(--muted); font-weight:600; margin-top:3px; line-height:1.25; max-width:120px;}
+.lb-ab{color:#D9455F; font-size:10px; font-weight:700; margin-left:4px;}
