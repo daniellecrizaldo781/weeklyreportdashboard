@@ -271,9 +271,8 @@ function ivrBranchLightbox(ch, branch){
   var tb = hours.map(function(h){
     var cells = days.map(function(d){
       var cell = (b.data[d]||{})[h] || {answered:0,abandoned:0,missed:0};
-      var a = cell.answered||0, m = cell.missed||0, ab = cell.abandoned||0;
-      var abTxt = ab>0 ? ' <span class="lb-ab">ab '+ab+'</span>' : '';
-      return '<td title="Answered: '+a+' · Missed: '+m+(ab>0?' · Abandoned: '+ab:'')+'"><b>'+a+'</b> ans / '+m+' msd'+abTxt+'</td>';
+      var tot = (cell.answered||0)+(cell.missed||0)+(cell.abandoned||0);
+      return '<td>'+(tot||'—')+'</td>';
     });
     var rowTot = days.reduce(function(x,d){ var c=(b.data[d]||{})[h]||{}; return x+(c.answered||0)+(c.missed||0)+(c.abandoned||0); },0);
     return '<tr><td>'+fmtHour(parseInt(h,10))+'</td>'+cells.join('')+'<td class="lb-total">'+(rowTot||'—')+'</td></tr>';
@@ -284,7 +283,7 @@ function ivrBranchLightbox(ch, branch){
   }).join('');
   var grand = days.reduce(function(x,d){ return x + hours.reduce(function(x2,h){ var c=(b.data[d]||{})[h]||{}; return x2+(c.answered||0)+(c.missed||0)+(c.abandoned||0); },0); },0);
   tb += '<tr class="lb-total"><td>Total</td>'+dayTot+'<td>'+grand+'</td></tr>';
-  return '<div class="small" style="margin-bottom:10px">Calls per hour — answered vs missed (ab = abandoned). Hover a cell for full detail.</div>'+
+  return '<div class="small" style="margin-bottom:10px">Total calls received per hour under this IVR branch.</div>'+
     '<table><thead>'+th+'</thead><tbody>'+tb+'</tbody></table>';
 }
 
