@@ -383,7 +383,7 @@ function s3(){
   var panel = '<div class="cat-panel" id="catDrvPanel"><div class="small" style="padding:14px">Select a call driver above to see its top subcategories.</div></div>';
   var body = krow +
     '<h3>Top 5 Call Drivers <span class="small">(all branches · by subcategory volume)</span></h3>'+
-    '<div class="col" style="flex:1">'+driversBar+'</div>'+
+    '<div class="col drivers" style="flex:1">'+driversBar+'</div>'+
     '<h3 style="margin-top:8px">📂 Per-Branch Top Call Drivers</h3>'+
     dd + panel;
   return slide(3,'Call Breakdown','Why customers contacted us this week', body);
@@ -626,7 +626,8 @@ window.addEventListener('DOMContentLoaded', function(){
       openLightbox(br, ch+' IVR — hourly calls received — '+esc(weeks[sel].label), ivrBranchLightbox(ch, br));
       return;
     }
-    if(e.target.closest('.dot') || e.target.closest('.foot') || e.target.closest('table') || e.target.closest('.scrollbox')) return;
+    // don't hijack clicks on interactive controls (dropdowns, dot nav, tables, foot)
+    if(e.target.closest('.dot') || e.target.closest('.foot') || e.target.closest('table') || e.target.closest('.scrollbox') || e.target.tagName==='SELECT' || e.target.closest('label') || e.target.closest('.dd-wrap')) return;
     var r = document.getElementById('deck').getBoundingClientRect();
     if(e.clientX > r.left + r.width*0.55){ next(); } else { prev(); }
   });

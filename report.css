@@ -275,3 +275,8 @@ tr td:first-child{font-weight:700;}
 .cat-panel td{padding:6px 10px; border-bottom:1px solid var(--line);}
 .cat-panel tr:nth-child(even) td{background:#fff;}
 .cat-panel .lb-total{background:#FFF0F6; font-weight:800;}
+
+/* slide 3 top-5 call drivers: wider labels so names don't get cut off */
+.bars.drivers .bar-lbl{width:230px; font-size:11.5px; white-space:normal; line-height:1.15; text-align:right;}
+.bars.drivers .bar-row{align-items:flex-start;}
+.bars.drivers .bar-val{margin-top:2px;}
