@@ -257,3 +257,21 @@ tr td:first-child{font-weight:700;}
 
 .lb-seat{font-size:10px; color:var(--muted); font-weight:600; margin-top:3px; line-height:1.25; max-width:120px;}
 .lb-ab{color:#D9455F; font-size:10px; font-weight:700; margin-left:4px;}
+
+/* call breakdown dropdown */
+.dd-wrap{margin:6px 0 10px;}
+.dd-wrap label{display:block;font-size:12px;font-weight:800;color:var(--ink);margin-bottom:5px;}
+#catDrvSel{
+  width:100%; max-width:340px; padding:9px 12px; font-size:13px; font-weight:600; color:var(--ink);
+  border:1.5px solid var(--pink-soft); border-radius:10px; background:#fff; cursor:pointer;
+}
+#catDrvSel:focus{outline:none; border-color:var(--pink);}
+.cat-panel{
+  background:var(--pink-bg); border:1px solid var(--line); border-radius:12px; padding:12px;
+  min-height:90px;
+}
+.cat-panel table{width:100%; border-collapse:collapse; font-size:12.5px;}
+.cat-panel th{background:#fff; color:var(--ink); font-weight:800; padding:7px 10px; text-align:left; border-bottom:2px solid var(--pink-soft);}
+.cat-panel td{padding:6px 10px; border-bottom:1px solid var(--line);}
+.cat-panel tr:nth-child(even) td{background:#fff;}
+.cat-panel .lb-total{background:#FFF0F6; font-weight:800;}

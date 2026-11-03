@@ -286,12 +286,27 @@ def agg_call(call):
                 agg2 = [(k, n[k], round(t[k], 2)) for k in t]
                 agg2.sort(key=lambda x: -x[1])
                 return [{"k": k, "count": n, "refund": r} for k, n, r in agg2[:8]]
+            # per-category (call driver) -> list of subcategories by ticket volume
+            per_cat = defaultdict(lambda: defaultdict(int))
+            for (s_, c_), b in bd.items():
+                per_cat[c_][s_] += b["n"]
+            per_cat_drivers = {}
+            for c_, subs in per_cat.items():
+                arr = sorted([{"k": s2, "count": n} for s2, n in subs.items()], key=lambda x: -x["count"])
+                per_cat_drivers[c_] = arr[:10]
+            # top subcategories across all branches (by volume)
+            all_subs = defaultdict(int)
+            for (s_, c_), b in bd.items():
+                all_subs[s_] += b["n"]
+            top_subs = sorted([{"k": s2, "count": n} for s2, n in all_subs.items()], key=lambda x: -x["count"])
             return {
                 "tickets": len(rows),
                 "refundTickets": refund_tk,
                 "refundAmount": refund_amt,
                 "avgRefund": round(refund_amt / refund_tk, 2) if refund_tk else 0,
                 "topDrivers": top("cat"),
+                "topDriversBySub": top_subs,
+                "perCatDrivers": per_cat_drivers,
                 "topRefundReason": top("sub", refund_only=True),
             }
         oha_rows = [r for r in rows_wk if is_oricle(r.get("brand"))]
@@ -309,13 +324,16 @@ def agg_call(call):
             top_reason = max(b["reasons"].items(), key=lambda x: x[1])[0] if b["reasons"] else "—"
             bybrand_list.append({"brand": brand, "tickets": b["n"], "refund": round(b["refund"], 2), "topReason": top_reason})
         bybrand_list.sort(key=lambda x: -x["refund"])
+        bd_all = agg_bd(rows_wk)
         wk_dict["breakdown"] = {
             "totalTickets": len(rows_wk),
-            "refundTickets": agg_bd(rows_wk)["refundTickets"],
-            "refundAmount": agg_bd(rows_wk)["refundAmount"],
-            "avgRefund": agg_bd(rows_wk)["avgRefund"],
-            "topDrivers": agg_bd(rows_wk)["topDrivers"],
-            "topRefundReason": agg_bd(rows_wk)["topRefundReason"],
+            "refundTickets": bd_all["refundTickets"],
+            "refundAmount": bd_all["refundAmount"],
+            "avgRefund": bd_all["avgRefund"],
+            "topDrivers": bd_all["topDrivers"],
+            "topDriversBySub": bd_all["topDriversBySub"],
+            "perCatDrivers": bd_all["perCatDrivers"],
+            "topRefundReason": bd_all["topRefundReason"],
             "oha": agg_bd(oha_rows),
             "nonoha": agg_bd(nonoha_rows),
             "byBrand": bybrand_list,

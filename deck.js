@@ -361,18 +361,51 @@ function s3(){
   var bd = c.call.breakdown||{};
   var pbd = p && p.call.breakdown ? p.call.breakdown : null;
   var oha = bd.oha||{}, nonoha = bd.nonoha||{};
-  var ohaDrivers = (oha.topDrivers||[]).map(function(x){ return {l:x.k, v:x.count}; });
-  var nonohaDrivers = (nonoha.topDrivers||[]).map(function(x){ return {l:x.k, v:x.count}; });
+  // top 5 top call drivers (all branches, by subcategory volume)
+  var topDrivers = (bd.topDriversBySub||[]).slice(0,5).map(function(x){ return {l:x.k, v:x.count}; });
+  // per-branch (per call-driver category) -> top subcategories
+  var perCat = bd.perCatDrivers||{};
+  var cats = Object.keys(perCat).sort();
   var krow = '<div class="kpis">'+
     kpi('Total Tickets', num(bd.totalTickets||0), pbd?delta(bd.totalTickets||0,pbd.totalTickets||0,{fmt:function(d){return (d>0?'+':'-')+num(Math.abs(d));},invert:false}):'')+
     kpi('OHA Tickets', num(oha.tickets||0), bd.totalTickets? Math.round(oha.tickets/bd.totalTickets*100)+'% of total':'')+
     kpi('Non-OHA Tickets', num(nonoha.tickets||0), bd.totalTickets? Math.round(nonoha.tickets/bd.totalTickets*100)+'% of total':'')+
     kpi('Refund Tickets', num(bd.refundTickets||0), pbd?delta(bd.refundTickets||0,pbd.refundTickets||0,{fmt:function(d){return (d>0?'+':'-')+num(Math.abs(d));},invert:true}):'')+'</div>';
-  var body = krow + '<div class="cols">'+
-    '<div class="col"><h3><span class="dot" style="background:#E8578E"></span>OHA Top Call Drivers</h3>'+bars(ohaDrivers,'#E8578E',num)+'</div>'+
-    '<div class="col"><h3><span class="dot" style="background:#4E9BE5"></span>Non-OHA Top Call Drivers</h3>'+bars(nonohaDrivers,'#4E9BE5',num)+'</div></div>';
+  var driversBar = bars(topDrivers,'#E8578E',num);
+  // dropdown for per-branch top call drivers
+  var selOpts = '<option value="">— pick a call driver —</option>' + cats.map(function(cat){
+    return '<option value="'+esc(cat)+'">'+esc(cat.replace(/_/g,' '))+'</option>';
+  }).join('');
+  var dd = '<div class="dd-wrap"><label>Per-Branch Top Call Drivers</label>'+
+    '<select id="catDrvSel"><option value="">— pick a call driver —</option>'+cats.map(function(cat){
+      return '<option value="'+esc(cat)+'">'+esc(cat.replace(/_/g,' '))+'</option>';
+    }).join('')+'</select></div>';
+  var panel = '<div class="cat-panel" id="catDrvPanel"><div class="small" style="padding:14px">Select a call driver above to see its top subcategories.</div></div>';
+  var body = krow +
+    '<h3>Top 5 Call Drivers <span class="small">(all branches · by subcategory volume)</span></h3>'+
+    '<div class="col" style="flex:1">'+driversBar+'</div>'+
+    '<h3 style="margin-top:8px">📂 Per-Branch Top Call Drivers</h3>'+
+    dd + panel;
   return slide(3,'Call Breakdown','Why customers contacted us this week', body);
 }
+function __renderCatDrivers(cat){
+  var panel = document.getElementById('catDrvPanel');
+  if(!panel) return;
+  var bd = (cur().call.breakdown||{});
+  var perCat = bd.perCatDrivers||{};
+  if(cat && perCat[cat]){
+    var rows = perCat[cat].map(function(x,i){
+      return '<tr><td>'+(i+1)+'</td><td>'+esc(x.k)+'</td><td>'+num(x.count)+'</td></tr>';
+    }).join('');
+    var total = perCat[cat].reduce(function(a,x){return a+x.count;},0);
+    panel.innerHTML = '<table><thead><tr><th>#</th><th>Subcategory</th><th>Tickets</th></tr></thead><tbody>'+
+      rows+'<tr class="lb-total"><td colspan="2">Total</td><td>'+num(total)+'</td></tr></tbody></table>'+
+      '<div class="small" style="margin-top:6px">'+esc(cat.replace(/_/g,' '))+' — top subcategories by ticket volume.</div>';
+  } else {
+    panel.innerHTML = '<div class="small" style="padding:14px">Select a call driver above to see its top subcategories.</div>';
+  }
+}
+window.__renderCatDrivers = __renderCatDrivers;
 
 /* ================= SLIDE 4 — Refund Overview ================= */
 function s4(){
@@ -539,6 +572,8 @@ function render(){
   si = Math.max(0, Math.min(si, SLIDES.length-1));
   var holder = document.getElementById('deck');
   holder.innerHTML = SLIDES[si]();
+  var catSel = holder.querySelector('#catDrvSel');
+  if(catSel){ catSel.onchange = function(){ __renderCatDrivers(catSel.value); }; }
   var act = holder.querySelector('.slide'); if(act) act.classList.add('active');
   // renumber the slide badge to its position in the (possibly filtered) deck
   var sn = holder.querySelector('.snum'); if(sn) sn.textContent = (si+1);
